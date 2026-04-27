@@ -1149,17 +1149,18 @@ a {
   border: 1px solid var(--border);
   background: var(--bg-surface-strong);
   overflow: hidden;
+  aspect-ratio: 3 / 4;
 }
 
 .td-canvas {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
 }
 
 .taprush-board {
   position: relative;
-  min-height: clamp(320px, 42vw, 500px);
+  min-height: clamp(640px, 84vw, 1000px);
   border-radius: 18px;
   border: 1px solid var(--border);
   background: linear-gradient(135deg, rgba(77, 163, 255, 0.12), rgba(15, 33, 56, 0.7));
@@ -1204,7 +1205,7 @@ a {
   border: 1px solid var(--border);
   background: var(--bg-surface-strong);
   overflow: hidden;
-  height: clamp(260px, 38vw, 440px);
+  height: clamp(520px, 76vw, 880px);
 }
 
 .aow-canvas {
@@ -1341,11 +1342,11 @@ a {
   }
 
   .taprush-board {
-    min-height: 320px;
+    min-height: 640px;
   }
 
   .aow-board {
-    height: clamp(230px, 56vw, 320px);
+    height: clamp(460px, 112vw, 640px);
   }
 }
 

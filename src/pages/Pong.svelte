@@ -551,7 +551,7 @@
       <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
       <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
       <div
-        class="relative w-full aspect-[16/9] rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden"
+        class="relative w-full aspect-[16/18] rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden"
         role="application"
         aria-label="Pong field"
         tabindex="0"

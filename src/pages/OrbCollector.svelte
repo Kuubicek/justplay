@@ -223,7 +223,7 @@
   <div class="game-play-layout">
     <div class="game-play-stage">
       <div class="orb-field" bind:this={container}>
-        <div class="w-full aspect-[16/9]">
+        <div class="w-full aspect-[16/18]">
           <canvas
             bind:this={canvas}
             class="orb-canvas w-full h-full block"

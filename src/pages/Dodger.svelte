@@ -235,7 +235,7 @@
   <div class="game-play-layout">
     <div class="game-play-stage">
       <div class="card relative overflow-hidden">
-        <div class="w-full aspect-[16/9]" bind:this={container}>
+        <div class="w-full aspect-[16/18]" bind:this={container}>
           <canvas
             bind:this={canvas}
             class="w-full h-full block"

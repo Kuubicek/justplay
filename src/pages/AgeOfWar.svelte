@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
+  import GameAchievementsPanel from '../components/GameAchievementsPanel.svelte';
   import { addScore } from '../lib/api/scores';
   import { user, guest } from '../lib/stores';
 
@@ -542,4 +543,5 @@
       </div>
     </div>
   </div>
+  <GameAchievementsPanel gameId={GAME_ID} title="Game achievements" />
 </Page>

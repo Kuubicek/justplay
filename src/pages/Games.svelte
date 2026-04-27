@@ -1,16 +1,10 @@
 <script>
   import Page from '../components/Page.svelte';
   import GameCard from '../components/GameCard.svelte';
-  const single = [
-    { id: 'dodger', name: 'Astro Dodger', mode: 'Singleplayer', desc: 'Dodge falling debris and survive as long as you can.' },
-    { id: 'td-lite', name: 'Tower Defense Lite', mode: 'Singleplayer', desc: 'Planned.' },
-    { id: 'coming-soon-sp', name: 'Coming Soon', mode: 'Singleplayer', desc: 'New singleplayer game on the way.' }
-  ];
-  const multi = [
-    { id: 'pong', name: 'Pong', mode: 'Multiplayer', desc: 'MP core demo.' },
-    { id: 'coming-soon-mp-1', name: 'Coming Soon', mode: 'Multiplayer', desc: 'New multiplayer experience incoming.' },
-    { id: 'coming-soon-mp-2', name: 'Coming Soon', mode: 'Multiplayer', desc: 'More online games will appear here.' }
-  ];
+  import { gameCatalog } from '../lib/gameData';
+
+  const single = gameCatalog.singleplayer;
+  const multi = gameCatalog.multiplayer;
 </script>
 
 <Page title="Games" subtitle="Browse singleplayer & multiplayer.">

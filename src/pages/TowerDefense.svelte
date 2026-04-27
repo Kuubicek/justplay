@@ -1,12 +1,17 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
+  import GameAchievementsPanel from '../components/GameAchievementsPanel.svelte';
+  import { addScore } from '../lib/api/scores';
+  import { user, guest } from '../lib/stores';
 
+  const GAME_ID = 'td-lite';
   const grid = { cols: 12, rows: 8, cell: 48 };
   const canvasWidth = grid.cols * grid.cell;
   const canvasHeight = grid.rows * grid.cell;
   const towerCost = 50;
   const baseLives = 15;
+  const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
   const pathNodes = [
     { x: 0, y: 3 },
@@ -63,6 +68,11 @@
   let lastTime = 0;
   let rafId = null;
   let gameOver = false;
+  let startedAt = 0;
+  let saving = false;
+  let saved = false;
+  let saveStatus = '';
+  let saveErr = '';
 
   const resetGame = () => {
     towers = [];
@@ -76,15 +86,54 @@
     spawned = 0;
     toSpawn = 0;
     gameOver = false;
+    startedAt = 0;
+    saved = false;
+    saving = false;
+    saveStatus = '';
+    saveErr = '';
   };
 
   const startWave = () => {
     if (spawning || gameOver) return;
+    if (!startedAt) startedAt = nowMs();
     wave += 1;
     spawning = true;
     spawned = 0;
     toSpawn = 6 + wave * 2;
     spawnTimer = 0;
+  };
+
+  const computeScore = () =>
+    Math.max(0, wave * 100 + Math.max(0, lives) * 25 + towers.length * 8 + Math.floor(money / 2));
+
+  const saveScore = async (outcome = 'loss') => {
+    if (saved || saving) return;
+    const score = computeScore();
+    if (score <= 0) {
+      saved = true;
+      return;
+    }
+    if (!$user && !$guest) {
+      saveStatus = 'Sign in to save scores.';
+      saved = true;
+      return;
+    }
+    saving = true;
+    saveErr = '';
+    try {
+      await addScore({
+        game_id: GAME_ID,
+        score,
+        duration_seconds: startedAt ? Math.round((nowMs() - startedAt) / 1000) : null,
+        meta: { wave, lives, money, towers: towers.length, outcome }
+      });
+      saveStatus = 'Score saved.';
+      saved = true;
+    } catch (e) {
+      saveErr = e?.message || 'Failed to save score.';
+    } finally {
+      saving = false;
+    }
   };
 
   const spawnEnemy = () => {
@@ -192,7 +241,10 @@
       updateEnemies(dt);
       updateTowers(dt);
       updateShots(dt);
-      if (lives <= 0) gameOver = true;
+      if (lives <= 0 && !gameOver) {
+        gameOver = true;
+        saveScore('loss');
+      }
     }
     draw();
     rafId = requestAnimationFrame(update);
@@ -374,6 +426,16 @@
         <li>Start waves to spawn enemies.</li>
         <li>Keep at least 1 life to continue.</li>
       </ul>
+      {#if saveStatus}
+        <p class="text-emerald-300 text-sm">{saveStatus}</p>
+      {/if}
+      {#if saveErr}
+        <p class="text-rose-400 text-sm">{saveErr}</p>
+      {/if}
+      {#if gameOver && !$user}
+        <p class="text-white/60 text-sm">Sign in to save scores.</p>
+      {/if}
     </div>
   </div>
+  <GameAchievementsPanel gameId="td-lite" title="Game achievements" />
 </Page>

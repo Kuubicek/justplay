@@ -1,62 +1,8 @@
 <script>
   import Page from '../components/Page.svelte';
+  import GameAchievementsPanel from '../components/GameAchievementsPanel.svelte';
   import { params } from '../lib/router';
-
-  const games = {
-    pong: {
-      id: 'pong',
-      name: 'Pong Arena',
-      mode: 'Multiplayer',
-      status: 'Live',
-      summary: 'Classic paddles meet fast matchmaking and lobby invites built for quick rematches.',
-      controls: ['W/S or Up/Down to move', 'Space to serve', 'Local: W/S left paddle, Up/Down right paddle'],
-      playHref: '#/play/pong',
-      actions: [
-        { label: 'Create match', href: '#/lobby', variant: 'accent' },
-        { label: 'Join match', href: '#/rooms', variant: 'ghost' },
-        { label: 'Local match', href: '#/play/pong?mode=local', variant: 'ghost' }
-      ],
-      meta: [
-        { label: 'Game ID', value: 'pong' },
-        { label: 'Players', value: '2 players' },
-        { label: 'Session', value: '3-6 min' }
-      ]
-    },
-    dodger: {
-      id: 'dodger',
-      name: 'Astro Dodger',
-      mode: 'Singleplayer',
-      status: 'Live',
-      summary: 'Dodge debris, chase your best score, and climb the leaderboards.',
-      controls: ['Mouse or touch to move', 'Arrow keys or A/D'],
-      actions: [
-        { label: 'Play Astro Dodger', href: '#/play/dodger', variant: 'accent' },
-        { label: 'View Leaderboard', href: '#/leaderboard', variant: 'ghost' }
-      ],
-      meta: [
-        { label: 'Game ID', value: 'dodger' },
-        { label: 'Players', value: '1 player' },
-        { label: 'Session', value: '5-10 min' }
-      ]
-    },
-    'td-lite': {
-      id: 'td-lite',
-      name: 'Tower Defense Lite',
-      mode: 'Singleplayer',
-      status: 'Coming soon',
-      summary: 'Build your lanes, upgrade fast, and see how long your defenses can hold.',
-      controls: ['Mouse to place towers', 'Scroll to zoom', 'Space to pause'],
-      actions: [
-        { label: 'View Roadmap', href: '#/games', variant: 'accent' },
-        { label: 'Notify Me', href: '#/register', variant: 'ghost' }
-      ],
-      meta: [
-        { label: 'Game ID', value: 'td-lite' },
-        { label: 'Players', value: '1 player' },
-        { label: 'Session', value: '8-15 min' }
-      ]
-    }
-  };
+  import { gameDetails } from '../lib/gameData';
 
   const buttonClass = (variant) => {
     if (variant === 'accent') return 'btn btn-accent';
@@ -76,7 +22,7 @@
   };
 
   $: gameId = $params.gameId || 'game';
-  $: game = games[gameId] || { ...fallback, id: gameId, meta: [{ label: 'Game ID', value: gameId }] };
+  $: game = gameDetails[gameId] || { ...fallback, id: gameId, meta: [{ label: 'Game ID', value: gameId }] };
 </script>
 
 <Page>
@@ -106,7 +52,7 @@
             {/each}
           </ul>
         </div>
-        {#if gameId === 'pong'}
+        {#if game.playPanel}
           <div class="game-detail__play">
             <a class="btn game-detail__play-button" href={game.playHref}>Play</a>
             <div class="game-detail__actions game-detail__actions--stacked">
@@ -114,7 +60,9 @@
                 <a class={buttonClass(action.variant)} href={action.href}>{action.label}</a>
               {/each}
             </div>
-            <p class="game-detail__play-note">Local match: W/S left paddle, Up/Down right paddle.</p>
+            {#if game.playNote}
+              <p class="game-detail__play-note">{game.playNote}</p>
+            {/if}
           </div>
         {:else}
           <div class="game-detail__actions">
@@ -136,5 +84,6 @@
         {/each}
       </div>
     </div>
+    <GameAchievementsPanel gameId={game.id} title={`${game.name} achievements`} />
   </div>
 </Page>

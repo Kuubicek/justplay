@@ -9,6 +9,11 @@
   import GameDetail from './pages/GameDetail.svelte';
   import Pong from './pages/Pong.svelte';
   import Dodger from './pages/Dodger.svelte';
+  import TowerDefense from './pages/TowerDefense.svelte';
+  import AgeOfWar from './pages/AgeOfWar.svelte';
+  import PulseRally from './pages/PulseRally.svelte';
+  import TapRush from './pages/TapRush.svelte';
+  import OrbCollector from './pages/OrbCollector.svelte';
   import Leaderboard from './pages/Leaderboard.svelte';
   import Lobby from './pages/Lobby.svelte';
   import Rooms from './pages/Rooms.svelte';
@@ -24,7 +29,12 @@
     if (p === '/') return Home;
     if (p === '/games') return Games;
     if (p === '/play/pong') return Pong;
+    if (p === '/play/pulse-rally') return PulseRally;
     if (p === '/play/dodger') return Dodger;
+    if (p === '/play/td-lite') return TowerDefense;
+    if (p === '/play/age-of-war-lite') return AgeOfWar;
+    if (p === '/play/tap-rush') return TapRush;
+    if (p === '/play/orb-collector') return OrbCollector;
     if (p.startsWith('/game/')) return GameDetail;
     if (p === '/leaderboard') return Leaderboard;
     if (p === '/lobby') return Lobby;

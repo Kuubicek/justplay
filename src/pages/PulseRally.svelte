@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
+  import GameAchievementsPanel from '../components/GameAchievementsPanel.svelte';
   import { supabase } from '../lib/supabaseClient';
   import { user } from '../lib/stores';
   import { query } from '../lib/router';
@@ -415,4 +416,5 @@
       {/if}
     </div>
   </div>
+  <GameAchievementsPanel gameId={GAME_ID} title="Game achievements" />
 </Page>

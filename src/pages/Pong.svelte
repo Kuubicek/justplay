@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
   import { supabase } from '../lib/supabaseClient';
-  import { user } from '../lib/stores';
+  import { user, guest } from '../lib/stores';
   import { query } from '../lib/router';
   import { joinRoom as joinDbRoom, leaveRoom as leaveDbRoom } from '../lib/api/rooms';
   import { addScore } from '../lib/api/scores';
@@ -251,7 +251,12 @@
       }
     });
 
-    const { error: subError } = await channel.subscribe(async (status) => {
+    channel.subscribe(async (status, subscribeError) => {
+      if (subscribeError) {
+        err = subscribeError.message || 'Realtime subscribe error.';
+        connection = 'idle';
+        return;
+      }
       if (status === 'SUBSCRIBED') {
         try {
           await channel.track({ name: displayName, joinedAt: Date.now() });
@@ -278,10 +283,6 @@
         connection = 'idle';
       }
     });
-    if (subError) {
-      err = subError.message || 'Realtime subscribe error.';
-      connection = 'idle';
-    }
   }
 
   $: if ($query?.room && $query.room !== roomCode && connection !== 'connecting') {
@@ -507,7 +508,7 @@
     if (savingScore) return;
     if (!renderState?.matchId || savedMatchId === renderState.matchId) return;
     if (seat === 'spectator') return;
-    if (!$user) {
+    if (!$user && !$guest) {
       saveStatus = 'Sign in to save match results.';
       savedMatchId = renderState.matchId;
       return;
@@ -545,30 +546,8 @@
 </script>
 
 <Page title="Pong Multiplayer">
-  <div class="grid md:grid-cols-3 gap-5">
-    <div class="md:col-span-2 space-y-4">
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="text-white/70 text-sm">Room</p>
-          <div class="flex items-center gap-2 mt-1">
-            <input
-              class="bg-slate-800 rounded-lg px-3 py-2"
-              bind:value={roomCode}
-              placeholder="room-id"
-              aria-label="Room code"
-            />
-            <button class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500" on:click={joinRoom}>
-              Join / Create
-            </button>
-          </div>
-        </div>
-        <div class="text-right">
-          <p class="text-white/70 text-sm">Role</p>
-          <p class="text-lg font-semibold capitalize">{seat}</p>
-          <p class="text-white/60 text-xs">Host: {hostLabel}</p>
-        </div>
-      </div>
-
+  <div class="game-play-layout">
+    <div class="game-play-stage">
       <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
       <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
       <div
@@ -635,29 +614,56 @@
           </div>
         {/if}
       </div>
-
-      <div class="flex items-center gap-3">
-        <div class="text-white/70 text-sm">
-          <p>Controls: mouse/click on the field, arrows/W/S for small moves.</p>
-          <p>Host runs the simulation and sends updates to others.</p>
-        </div>
-        {#if seat !== 'spectator'}
-          <div class="flex items-center gap-2">
-            <button class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700" on:click={requestRestart}>
-              {renderState?.status === 'finished'
-                ? rematchVotes[clientId] ? 'Cancel rematch' : 'Ready for rematch'
-                : isAuthority ? 'Restart' : 'Request restart'}
-            </button>
-            {#if renderState?.status === 'finished'}
-              <span class="text-white/60 text-xs">{rematchLabel}</span>
-            {/if}
-          </div>
-        {/if}
-      </div>
     </div>
 
-    <div class="space-y-3">
-      <div class="border border-slate-800 rounded-2xl p-4">
+    <div class="game-play-panels game-play-panels--wide">
+      <div class="card">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="text-white/70 text-sm">Room</p>
+            <div class="flex flex-wrap items-center gap-2 mt-1">
+              <input
+                class="bg-slate-800 rounded-lg px-3 py-2"
+                bind:value={roomCode}
+                placeholder="room-id"
+                aria-label="Room code"
+              />
+              <button class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500" on:click={joinRoom}>
+                Join / Create
+              </button>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="text-white/70 text-sm">Role</p>
+            <p class="text-lg font-semibold capitalize">{seat}</p>
+            <p class="text-white/60 text-xs">Host: {hostLabel}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="font-semibold mb-2">Controls</h3>
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="text-white/70 text-sm">
+            <p>Mouse/click on the field, arrows/W/S for small moves.</p>
+            <p>Host runs the simulation and sends updates to others.</p>
+          </div>
+          {#if seat !== 'spectator'}
+            <div class="flex items-center gap-2">
+              <button class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700" on:click={requestRestart}>
+                {renderState?.status === 'finished'
+                  ? rematchVotes[clientId] ? 'Cancel rematch' : 'Ready for rematch'
+                  : isAuthority ? 'Restart' : 'Request restart'}
+              </button>
+              {#if renderState?.status === 'finished'}
+                <span class="text-white/60 text-xs">{rematchLabel}</span>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <div class="card">
         <h3 class="font-semibold mb-2">Match info</h3>
         <ul class="text-sm text-white/70 space-y-1">
           <li>Host: {hostLabel}</li>
@@ -672,7 +678,8 @@
           <p class="text-rose-400 text-sm mt-3">{saveErr}</p>
         {/if}
       </div>
-      <div class="border border-slate-800 rounded-2xl p-4">
+
+      <div class="card">
         <h3 class="font-semibold mb-2">Players</h3>
         {#if presence.length === 0}
           <p class="text-white/60 text-sm">No one connected yet.</p>
@@ -692,8 +699,9 @@
           </ul>
         {/if}
       </div>
+
       {#if err}
-        <div class="border border-rose-700 rounded-2xl p-3 text-rose-200 text-sm">
+        <div class="card border border-rose-700 text-rose-200 text-sm">
           {err}
         </div>
       {/if}

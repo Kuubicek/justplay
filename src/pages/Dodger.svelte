@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
   import { addScore } from '../lib/api/scores';
-  import { user } from '../lib/stores';
+  import { user, guest } from '../lib/stores';
 
   const GAME_ID = 'dodger';
   const BASE_SPAWN = 0.85;
@@ -91,7 +91,7 @@
 
   async function saveScore() {
     if (saved || saving || score <= 0) return;
-    if (!$user) {
+    if (!$user && !$guest) {
       saveStatus = 'Sign in to save scores.';
       saved = true;
       return;
@@ -232,9 +232,9 @@
 </script>
 
 <Page title="Astro Dodger" subtitle="Singleplayer survival: dodge the debris.">
-  <div class="grid md:grid-cols-[1.2fr,0.8fr] gap-5">
-    <div class="space-y-3">
-      <div class="relative border border-slate-800 rounded-2xl bg-slate-950/60 overflow-hidden">
+  <div class="game-play-layout">
+    <div class="game-play-stage">
+      <div class="card relative overflow-hidden">
         <div class="w-full aspect-[16/9]" bind:this={container}>
           <canvas
             bind:this={canvas}
@@ -256,29 +256,31 @@
           </div>
         {/if}
       </div>
-
-      <div class="flex flex-wrap items-center gap-3">
-        <button class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500" on:click={startGame}>
-          {running ? 'Restart' : gameOver ? 'Play again' : 'Start'}
-        </button>
-        <button
-          class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700"
-          on:click={resetGame}
-          disabled={running}
-        >
-          Reset
-        </button>
-        <span class="text-white/70 text-sm">Move: mouse/touch, or arrows/A/D.</span>
-      </div>
     </div>
 
-    <div class="space-y-3">
-      <div class="border border-slate-800 rounded-2xl p-4">
+    <div class="game-play-panels game-play-panels--three">
+      <div class="card">
+        <h3 class="font-semibold mb-3">Controls</h3>
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="btn btn-accent" on:click={startGame}>
+            {running ? 'Restart' : gameOver ? 'Play again' : 'Start'}
+          </button>
+          <button
+            class="btn btn-ghost"
+            on:click={resetGame}
+            disabled={running}
+          >
+            Reset
+          </button>
+          <span class="text-white/70 text-sm">Move: mouse/touch, or arrows/A/D.</span>
+        </div>
+      </div>
+      <div class="card">
         <h3 class="font-semibold mb-2">Score</h3>
         <p class="text-3xl font-semibold">{score}</p>
         <p class="text-white/60 text-sm">Best: {best}</p>
       </div>
-      <div class="border border-slate-800 rounded-2xl p-4">
+      <div class="card">
         <h3 class="font-semibold mb-2">Status</h3>
         <p class="text-white/70 text-sm">
           {running ? 'Dodging...' : gameOver ? 'Game over' : 'Ready'}

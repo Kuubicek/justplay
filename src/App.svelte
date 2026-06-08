@@ -21,6 +21,8 @@
   import Login from './pages/Login.svelte';
   import Register from './pages/Register.svelte';
   import About from './pages/About.svelte';
+  import TOS from './pages/TOS.svelte';
+  import PrivacyPolicy from './pages/PrivacyPolicy.svelte';
   import NotFound from './pages/NotFound.svelte';
 
   initAuth();
@@ -43,6 +45,8 @@
     if (p === '/login') return Login;
     if (p === '/register') return Register;
     if (p === '/about') return About;
+    if (p === '/tos') return TOS;
+    if (p === '/privacy') return PrivacyPolicy;
     return NotFound;
   };
 
@@ -52,7 +56,7 @@
 
 <div class="min-h-dvh flex flex-col">
   <Nav />
-  <main class="flex-1">
+  <main class="flex-1 pb-8">
     <svelte:component this={Current} />
   </main>
   <Footer />

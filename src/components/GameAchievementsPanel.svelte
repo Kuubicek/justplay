@@ -1,7 +1,7 @@
 <script>
   import { getAchievementsForUser } from '../lib/api/achievements';
   import { isAnonymousUser } from '../lib/api/auth';
-  import { user } from '../lib/stores';
+  import { achievementRefreshTick, user } from '../lib/stores';
 
   export let gameId = '';
   export let title = 'Achievements';
@@ -49,7 +49,7 @@
   }
 
   $: {
-    const key = `${gameId || ''}::${$user?.id || ($user ? 'anon' : 'guest')}`;
+    const key = `${gameId || ''}::${$user?.id || ($user ? 'anon' : 'guest')}::${$achievementRefreshTick}`;
     if (gameId && key !== requestedKey) {
       requestedKey = key;
       loadAchievements();
@@ -70,7 +70,7 @@
       <h3 class="font-semibold">{title}</h3>
       {#if totalCount > 0}
         <p class="text-white/60 text-sm">
-          {unlockedCount}/{totalCount} unlocked · {remainingCount} remaining
+          {unlockedCount}/{totalCount} unlocked - {remainingCount} remaining
         </p>
       {/if}
     </div>

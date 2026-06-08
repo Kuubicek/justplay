@@ -9,6 +9,10 @@
   const GRID_COLS = 12;
   const GRID_ROWS = 8;
   const ROUND_TIME = 45;
+  const MAX_TIME = 90;
+  const MAX_ORBS = 4;
+  const ORB_MIN_TTL = 2300;
+  const ORB_MAX_TTL = 7000;
   const bestKey = 'jp_orb_collector_best';
 
   let container;
@@ -17,19 +21,25 @@
   let width = 0;
   let height = 0;
   let player = { x: 5, y: 4 };
-  let orb = { x: 2, y: 2 };
+  let orbs = [];
+  let orbSerial = 0;
   let score = 0;
   let best = 0;
   let timeLeft = ROUND_TIME;
   let running = false;
   let gameOver = false;
   let timer = 0;
+  let orbTimer = 0;
   let raf = 0;
   let startedAt = 0;
   let saving = false;
   let saved = false;
   let saveStatus = '';
   let saveErr = '';
+  let timeBonusTotal = 0;
+  let expiredOrbs = 0;
+  let quickestCollectMs = null;
+  let statusMessage = '';
 
   const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -45,15 +55,69 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function spawnOrb() {
-    let next;
-    do {
-      next = {
+  function activeOrbTarget() {
+    return Math.min(MAX_ORBS, 1 + Math.floor(score / 6));
+  }
+
+  function randomOrbTtl() {
+    const speedup = Math.min(2200, score * 45);
+    const max = Math.max(ORB_MIN_TTL + 700, ORB_MAX_TTL - speedup);
+    const ttl = ORB_MIN_TTL + Math.random() * (max - ORB_MIN_TTL);
+    return Math.round(ttl);
+  }
+
+  function isCellOccupied(x, y) {
+    if (player.x === x && player.y === y) return true;
+    return orbs.some((orb) => orb.x === x && orb.y === y);
+  }
+
+  function spawnOrb(at = Date.now()) {
+    let next = null;
+    let attempts = 0;
+    while (!next && attempts < 300) {
+      attempts += 1;
+      const probe = {
         x: Math.floor(Math.random() * GRID_COLS),
         y: Math.floor(Math.random() * GRID_ROWS)
       };
-    } while (next.x === player.x && next.y === player.y);
-    orb = next;
+      if (!isCellOccupied(probe.x, probe.y)) next = probe;
+    }
+    if (!next) return null;
+    const ttl = randomOrbTtl();
+    orbSerial += 1;
+    return {
+      id: `orb-${orbSerial}`,
+      x: next.x,
+      y: next.y,
+      spawnedAt: at,
+      expiresAt: at + ttl,
+      ttl
+    };
+  }
+
+  function ensureOrbCount(at = Date.now()) {
+    const target = activeOrbTarget();
+    while (orbs.length < target) {
+      const orb = spawnOrb(at);
+      if (!orb) break;
+      orbs = [...orbs, orb];
+    }
+    if (orbs.length > target) {
+      orbs = orbs.slice(0, target);
+    }
+  }
+
+  function addTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    timeLeft = Math.min(MAX_TIME, timeLeft + seconds);
+    timeBonusTotal += seconds;
+  }
+
+  function clearTimers() {
+    clearInterval(timer);
+    clearInterval(orbTimer);
+    timer = 0;
+    orbTimer = 0;
   }
 
   function resetGame() {
@@ -62,19 +126,25 @@
     score = 0;
     timeLeft = ROUND_TIME;
     player = { x: Math.floor(GRID_COLS / 2), y: Math.floor(GRID_ROWS / 2) };
-    spawnOrb();
+    orbs = [];
+    orbSerial = 0;
     saved = false;
     saving = false;
     saveStatus = '';
     saveErr = '';
-    clearInterval(timer);
-    timer = 0;
+    statusMessage = '';
+    timeBonusTotal = 0;
+    expiredOrbs = 0;
+    quickestCollectMs = null;
+    clearTimers();
+    ensureOrbCount(Date.now());
   }
 
   function startGame() {
     resetGame();
     running = true;
     startedAt = nowMs();
+    statusMessage = 'Collect quickly to earn extra time.';
     timer = setInterval(() => {
       timeLeft -= 1;
       if (timeLeft <= 0) {
@@ -82,13 +152,24 @@
         stopGame();
       }
     }, 1000);
+    orbTimer = setInterval(() => {
+      if (!running) return;
+      const at = Date.now();
+      const before = orbs.length;
+      orbs = orbs.filter((orb) => orb.expiresAt > at);
+      const expired = before - orbs.length;
+      if (expired > 0) {
+        expiredOrbs += expired;
+        statusMessage = `Missed ${expired} orb${expired > 1 ? 's' : ''}.`;
+      }
+      ensureOrbCount(at);
+    }, 140);
   }
 
   function stopGame() {
     running = false;
     gameOver = true;
-    clearInterval(timer);
-    timer = 0;
+    clearTimers();
     if (score > best) {
       best = score;
       if (typeof localStorage !== 'undefined') {
@@ -96,6 +177,18 @@
       }
     }
     saveScore();
+  }
+
+  function collectOrb(orb, at) {
+    score += 1;
+    const ageMs = Math.max(0, at - orb.spawnedAt);
+    quickestCollectMs = quickestCollectMs == null ? ageMs : Math.min(quickestCollectMs, ageMs);
+    const speedRatio = 1 - Math.min(1, ageMs / Math.max(1, orb.ttl));
+    const timeReward = Math.max(1, Math.round(1 + speedRatio * 4));
+    addTime(timeReward);
+    statusMessage = `Orb +1, time +${timeReward}s`;
+    orbs = orbs.filter((item) => item.id !== orb.id);
+    ensureOrbCount(at);
   }
 
   function movePlayer(dx, dy) {
@@ -106,9 +199,9 @@
     };
     if (next.x === player.x && next.y === player.y) return;
     player = next;
-    if (player.x === orb.x && player.y === orb.y) {
-      score += 1;
-      spawnOrb();
+    const hitOrb = orbs.find((orb) => orb.x === player.x && orb.y === player.y);
+    if (hitOrb) {
+      collectOrb(hitOrb, Date.now());
     }
   }
 
@@ -137,7 +230,12 @@
         game_id: GAME_ID,
         score,
         duration_seconds: Math.round((nowMs() - startedAt) / 1000),
-        meta: { grid: `${GRID_COLS}x${GRID_ROWS}` }
+        meta: {
+          grid: `${GRID_COLS}x${GRID_ROWS}`,
+          timeBonusTotal,
+          expiredOrbs,
+          quickestCollectMs
+        }
       });
       saveStatus = 'Score saved.';
       saved = true;
@@ -150,6 +248,7 @@
 
   function draw() {
     if (!ctx) return;
+    const at = Date.now();
     ctx.clearRect(0, 0, width, height);
     const gradient = ctx.createLinearGradient(0, 0, 0, height);
     gradient.addColorStop(0, '#071726');
@@ -175,16 +274,27 @@
       ctx.stroke();
     }
 
-    const orbX = (orb.x + 0.5) * cellW;
-    const orbY = (orb.y + 0.5) * cellH;
-    const orbR = Math.min(cellW, cellH) * 0.28;
-    ctx.fillStyle = '#38bdf8';
-    ctx.shadowColor = 'rgba(56, 189, 248, 0.45)';
-    ctx.shadowBlur = 18;
-    ctx.beginPath();
-    ctx.arc(orbX, orbY, orbR, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
+    for (const orb of orbs) {
+      const orbX = (orb.x + 0.5) * cellW;
+      const orbY = (orb.y + 0.5) * cellH;
+      const orbR = Math.min(cellW, cellH) * 0.26;
+      const remaining = Math.max(0, orb.expiresAt - at);
+      const ratio = Math.max(0, Math.min(1, remaining / Math.max(1, orb.ttl)));
+      const hue = Math.round(18 + ratio * 185);
+      ctx.fillStyle = `hsla(${hue}, 92%, 58%, 0.95)`;
+      ctx.shadowColor = `hsla(${hue}, 92%, 58%, 0.48)`;
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(orbX, orbY, orbR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(orbX, orbY, orbR + 4, -Math.PI / 2, -Math.PI / 2 + ratio * Math.PI * 2);
+      ctx.stroke();
+    }
 
     const px = player.x * cellW + cellW * 0.1;
     const py = player.y * cellH + cellH * 0.1;
@@ -206,7 +316,7 @@
       best = Number.isFinite(stored) ? stored : 0;
     }
     resizeCanvas();
-    spawnOrb();
+    ensureOrbCount(Date.now());
     window.addEventListener('resize', resizeCanvas);
     window.addEventListener('keydown', handleKeydown);
     raf = requestAnimationFrame(tick);
@@ -215,16 +325,19 @@
   onDestroy(() => {
     window.removeEventListener('resize', resizeCanvas);
     window.removeEventListener('keydown', handleKeydown);
-    clearInterval(timer);
+    clearTimers();
     if (raf) cancelAnimationFrame(raf);
   });
+
+  $: orbTarget = activeOrbTarget();
+  $: quickestCollectLabel = quickestCollectMs == null ? '-' : `${(quickestCollectMs / 1000).toFixed(2)}s`;
 </script>
 
-<Page title="Orb Collector" subtitle="Singleplayer grid chase: collect orbs before time runs out.">
+<Page title="Orb Collector" subtitle="Singleplayer grid chase with timed orb waves and speed-based time rewards.">
   <div class="game-play-layout">
     <div class="game-play-stage">
       <div class="orb-field" bind:this={container}>
-        <div class="w-full aspect-[16/18]">
+        <div class="w-full aspect-[3/2]">
           <canvas
             bind:this={canvas}
             class="orb-canvas w-full h-full block"
@@ -280,15 +393,19 @@
         <h3 class="font-semibold mb-2">Score</h3>
         <p class="text-3xl font-semibold">{score}</p>
         <p class="text-white/60 text-sm">Best: {best}</p>
+        <p class="text-white/60 text-sm">Active orbs: {orbs.length}/{orbTarget}</p>
       </div>
       <div class="card">
         <h3 class="font-semibold mb-2">Timer</h3>
         <p class="text-2xl font-semibold">{timeLeft}s</p>
-        <p class="text-white/60 text-sm">Grid: {GRID_COLS}x{GRID_ROWS}</p>
+        <p class="text-white/60 text-sm">Bonus time: +{timeBonusTotal}s</p>
+        <p class="text-white/60 text-sm">Quickest orb: {quickestCollectLabel}</p>
       </div>
       <div class="card">
         <h3 class="font-semibold mb-2">Status</h3>
         <p class="text-white/70 text-sm">{running ? 'Collecting...' : gameOver ? 'Finished' : 'Ready'}</p>
+        <p class="text-cyan-300 text-sm mt-2">{statusMessage || 'Catch orbs early for bigger time reward.'}</p>
+        <p class="text-white/60 text-sm mt-2">Expired orbs: {expiredOrbs}</p>
         {#if saveStatus}
           <p class="text-emerald-300 text-sm mt-2">{saveStatus}</p>
         {/if}

@@ -21,6 +21,8 @@
   const BROADCAST_EVERY_MS = 55;
   const INPUT_BROADCAST_MS = 30;
   const INTERP_DELAY_MS = 90;
+  const ACTIVITY_PING_MS = 5000;
+  const INACTIVITY_LIMIT_MS = 20000;
   const randomId = () =>
     (typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
@@ -61,6 +63,11 @@
   let savingScore = false;
   let saveStatus = '';
   let saveErr = '';
+  let activityTimer = 0;
+  let activityTick = 0;
+  let lastSeen = {};
+  let shadowMode = false;
+  let kickNotice = '';
 
   function nextSeed() {
     const now = Date.now();
@@ -111,6 +118,55 @@
   function resetSnapshots() {
     serverPrev = null;
     serverNext = null;
+  }
+
+  function markActivity(playerId, at = Date.now()) {
+    if (!playerId) return;
+    lastSeen = { ...lastSeen, [playerId]: at };
+  }
+
+  function inactivityMs(playerId) {
+    const seenAt = lastSeen[playerId] ?? 0;
+    if (!seenAt) return Infinity;
+    return Date.now() - seenAt;
+  }
+
+  function isInactive(playerId) {
+    return inactivityMs(playerId) > INACTIVITY_LIMIT_MS;
+  }
+
+  function startActivityLoop() {
+    stopActivityLoop();
+    activityTimer = setInterval(() => {
+      activityTick += 1;
+      if (connection !== 'online' || !channel) return;
+      channel.send({ type: 'broadcast', event: 'activity', payload: { from: clientId, at: Date.now() } });
+    }, ACTIVITY_PING_MS);
+  }
+
+  function stopActivityLoop() {
+    if (!activityTimer) return;
+    clearInterval(activityTimer);
+    activityTimer = 0;
+  }
+
+  function shadowSeat() {
+    const left = presence[0]?.key || null;
+    const right = presence[1]?.key || null;
+    if (!left) return 'left';
+    if (!right) return 'right';
+    if (isInactive(left)) return 'left';
+    if (isInactive(right)) return 'right';
+    return null;
+  }
+
+  function applyShadowInput() {
+    if (!isAuthority || !shadowMode || renderState?.status !== 'running') return;
+    const seatToCover = shadowSeat();
+    if (!seatToCover || !state?.ball) return;
+    const drift = (Math.random() - 0.5) * 0.08;
+    const target = clampPaddle((state.ball.y ?? 0.5) + drift);
+    serverInputs[seatToCover] = target;
   }
 
   function applyLocalPaddle(nextState) {
@@ -177,6 +233,7 @@
   onDestroy(() => {
     stopLoop();
     stopClientLoop();
+    stopActivityLoop();
     resetInputSend();
     if (channel) supabase.removeChannel(channel);
     if (dbRoomId) leaveDbRoom(dbRoomId);
@@ -202,9 +259,13 @@
     stopClientLoop();
     resetInputSend();
     resetSnapshots();
+    stopActivityLoop();
     localPaddleState = null;
     rematchVotes = {};
     rematchTriggeredFor = null;
+    shadowMode = false;
+    kickNotice = '';
+    lastSeen = {};
     if (channel) supabase.removeChannel(channel);
     state = createInitialState();
     renderState = cloneState(state);
@@ -233,10 +294,32 @@
     });
     channel.on('broadcast', { event: 'rematch' }, ({ payload }) => {
       if (!payload?.from) return;
+      markActivity(payload.from, payload.at || Date.now());
       rematchVotes = { ...rematchVotes, [payload.from]: !!payload.wants };
+    });
+    channel.on('broadcast', { event: 'activity' }, ({ payload }) => {
+      if (!payload?.from) return;
+      markActivity(payload.from, payload.at || Date.now());
+    });
+    channel.on('broadcast', { event: 'kick' }, ({ payload }) => {
+      if (!payload?.target || payload.target !== clientId) return;
+      const by = payload.by || 'host';
+      kickNotice = `You were removed from the room by ${by}.`;
+      err = kickNotice;
+      connection = 'idle';
+      seat = 'spectator';
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+      if (dbRoomId) {
+        leaveDbRoom(dbRoomId);
+        dbRoomId = null;
+      }
     });
     channel.on('broadcast', { event: 'input' }, ({ payload }) => {
       if (!payload) return;
+      markActivity(payload.from, payload.at || Date.now());
       if (isAuthority && payload.seat) {
         serverInputs[payload.seat] = clampPaddle(payload.y ?? 0.5);
       }
@@ -261,6 +344,8 @@
       if (status === 'SUBSCRIBED') {
         try {
           await channel.track({ name: displayName, joinedAt: Date.now() });
+          markActivity(clientId, Date.now());
+          startActivityLoop();
           connection = 'online';
           err = '';
           try {
@@ -275,13 +360,16 @@
       if (status === 'CHANNEL_ERROR') {
         err = 'Realtime channel error. Check Supabase Realtime is enabled.';
         connection = 'idle';
+        stopActivityLoop();
       }
       if (status === 'TIMED_OUT') {
         err = 'Realtime channel timed out.';
         connection = 'idle';
+        stopActivityLoop();
       }
       if (status === 'CLOSED') {
         connection = 'idle';
+        stopActivityLoop();
       }
     });
   }
@@ -301,6 +389,12 @@
     );
     flat.sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
     presence = flat;
+    const seenUpdates = {};
+    for (const entry of flat) {
+      const fallback = entry.joinedAt || Date.now();
+      seenUpdates[entry.key] = Math.max(lastSeen[entry.key] ?? 0, fallback);
+    }
+    lastSeen = { ...lastSeen, ...seenUpdates };
     activePlayers = Math.min(2, flat.length);
     authority = flat[0]?.key || null;
     const wasAuthority = isAuthority;
@@ -340,7 +434,9 @@
         return;
       }
       const now = nowMs();
-      stepState(state, serverInputs, now, activePlayers);
+      applyShadowInput();
+      const simPlayers = shadowMode ? Math.max(2, activePlayers) : activePlayers;
+      stepState(state, serverInputs, now, simPlayers);
       renderState = cloneState(state);
 
       if (now - lastBroadcast >= BROADCAST_EVERY_MS) {
@@ -398,6 +494,7 @@
 
   function sendInput(clamped) {
     const payload = { seat, y: clamped, from: clientId, at: Date.now() };
+    markActivity(clientId, payload.at);
     channel.send({ type: 'broadcast', event: 'input', payload });
     if (isAuthority) {
       serverInputs[seat] = clamped;
@@ -454,6 +551,7 @@
 
   function restartMatch() {
     if (!isAuthority) return;
+    markActivity(clientId, Date.now());
     state = createInitialState(nextSeed());
     renderState = cloneState(state);
     serverInputs = { left: 0.5, right: 0.5 };
@@ -469,6 +567,7 @@
 
   function requestRestart() {
     if (!channel || seat === 'spectator') return;
+    markActivity(clientId, Date.now());
     if (renderState?.status === 'finished') {
       const wants = !rematchVotes[clientId];
       rematchVotes = { ...rematchVotes, [clientId]: wants };
@@ -479,8 +578,19 @@
     else channel.send({ type: 'broadcast', event: 'restart', payload: { from: clientId, at: Date.now() } });
   }
 
+  function toggleShadowMode() {
+    if (!isAuthority) return;
+    shadowMode = !shadowMode;
+    if (shadowMode) markActivity(clientId, Date.now());
+  }
+
+  function kickPlayer(targetId) {
+    if (!isAuthority || !channel || !targetId || targetId === clientId) return;
+    channel.send({ type: 'broadcast', event: 'kick', payload: { target: targetId, by: displayName, at: Date.now() } });
+  }
+
   $: winnerLabel = renderState.winner
-    ? `Winner: ${renderState.winner === 'left' ? 'Left' : 'Right'}`
+    ? `Victory: ${renderState.winner === 'left' ? 'Left side' : 'Right side'}`
     : null;
   $: if (renderState?.matchId && renderState.matchId !== lastMatchId) {
     lastMatchId = renderState.matchId;
@@ -495,6 +605,26 @@
   $: rematchReady = activeKeys.filter((key) => rematchVotes[key]).length;
   $: rematchNeeded = Math.max(1, activeKeys.length);
   $: rematchLabel = `${rematchReady}/${rematchNeeded} ready`;
+  $: playerRows = (() => {
+    activityTick;
+    return presence.map((p, idx) => {
+      const idleMs = inactivityMs(p.key);
+      const inactive = idleMs > INACTIVITY_LIMIT_MS;
+      return {
+        ...p,
+        idx,
+      inactive,
+      idleSec: Number.isFinite(idleMs) ? Math.round(idleMs / 1000) : null,
+      roleLabel: idx === 0 ? 'Left / Host' : idx === 1 ? 'Right' : 'Spectator'
+    };
+    });
+  })();
+  $: shadowSeatTarget = shadowSeat();
+  $: shadowReason = shadowSeatTarget
+    ? shadowSeatTarget === 'left'
+      ? 'Left side missing or inactive'
+      : 'Right side missing or inactive'
+    : 'Both players active';
   $: if (isAuthority && renderState?.status === 'finished' && rematchReady >= rematchNeeded) {
     if (rematchTriggeredFor !== renderState.matchId) {
       rematchTriggeredFor = renderState.matchId;
@@ -609,8 +739,15 @@
 
         {#if winnerLabel}
           <div class="absolute inset-0 flex items-center justify-center">
-            <div class="px-4 py-3 rounded-xl bg-black/70 border border-emerald-400/60 text-emerald-200 font-semibold">
-              {winnerLabel}
+            <div class="max-w-sm w-[92%] px-5 py-5 rounded-2xl bg-black/78 border border-emerald-300/70 text-emerald-100 shadow-xl">
+              <p class="text-xs uppercase tracking-[0.24em] text-emerald-200/80 mb-1">Match finished</p>
+              <p class="text-2xl font-semibold">{winnerLabel}</p>
+              <p class="text-sm text-emerald-100/80 mt-2">Rematch votes: {rematchLabel}</p>
+              {#if seat !== 'spectator'}
+                <button class="btn btn-accent mt-3 w-full" type="button" on:click={requestRestart}>
+                  {rematchVotes[clientId] ? 'Cancel rematch vote' : 'Ready for rematch'}
+                </button>
+              {/if}
             </div>
           </div>
         {/if}
@@ -656,10 +793,18 @@
                   ? rematchVotes[clientId] ? 'Cancel rematch' : 'Ready for rematch'
                   : isAuthority ? 'Restart' : 'Request restart'}
               </button>
-              {#if renderState?.status === 'finished'}
-                <span class="text-white/60 text-xs">{rematchLabel}</span>
-              {/if}
             </div>
+          {/if}
+          {#if isAuthority}
+            <div class="flex items-center gap-2">
+              <button class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700" type="button" on:click={toggleShadowMode}>
+                {shadowMode ? 'Disable shadow mode' : 'Enable shadow mode'}
+              </button>
+              <span class="text-white/60 text-xs">{shadowReason}</span>
+            </div>
+          {/if}
+          {#if renderState?.status === 'finished'}
+            <span class="text-white/60 text-xs">{rematchLabel}</span>
           {/if}
         </div>
       </div>
@@ -671,6 +816,8 @@
           <li>Players: {activePlayers}/2</li>
           <li>Sim status: {renderState.status}</li>
           <li>Max score: {constants.WIN_SCORE}</li>
+          <li>Shadow mode: {shadowMode ? 'On' : 'Off'}</li>
+          <li>Inactive timeout: {Math.round(INACTIVITY_LIMIT_MS / 1000)}s</li>
         </ul>
         {#if saveStatus}
           <p class="text-emerald-300 text-sm mt-3">{saveStatus}</p>
@@ -686,15 +833,23 @@
           <p class="text-white/60 text-sm">No one connected yet.</p>
         {:else}
           <ul class="space-y-2 text-sm">
-            {#each presence as p, idx}
+            {#each playerRows as p}
               <li class="flex items-center justify-between bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2">
                 <div>
                   <p class="font-semibold">{p.name || p.key}{p.key === clientId ? ' (you)' : ''}</p>
                   <p class="text-white/60 text-xs">{p.key}</p>
+                  <p class={`text-xs mt-1 ${p.inactive ? 'text-rose-300' : 'text-emerald-300'}`}>
+                    {p.inactive ? `Inactive ${p.idleSec}s` : `Active ${p.idleSec ?? 0}s ago`}
+                  </p>
                 </div>
-                <span class="text-white/70 text-xs px-2 py-1 rounded bg-slate-800">
-                  {idx === 0 ? 'Left / Host' : idx === 1 ? 'Right' : 'Spectator'}
-                </span>
+                <div class="flex items-center gap-2">
+                  <span class="text-white/70 text-xs px-2 py-1 rounded bg-slate-800">
+                    {p.roleLabel}
+                  </span>
+                  {#if isAuthority && p.inactive && p.key !== clientId}
+                    <button class="btn btn-danger" type="button" on:click={() => kickPlayer(p.key)}>Kick</button>
+                  {/if}
+                </div>
               </li>
             {/each}
           </ul>

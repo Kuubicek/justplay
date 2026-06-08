@@ -2,6 +2,24 @@ import { get } from 'svelte/store';
 import { supabase } from '../supabaseClient';
 import { user, guest } from '../stores';
 
+export const normalizeEmail = (email = '') => String(email || '').trim().toLowerCase();
+
+export const isLikelyValidEmail = (email = '') => {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return false;
+  if (normalized.length > 254) return false;
+  const parts = normalized.split('@');
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+  if (!local || !domain) return false;
+  if (local.length > 64) return false;
+  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(local)) return false;
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domain)) return false;
+  if (domain.startsWith('.') || domain.endsWith('.')) return false;
+  if (domain.includes('..')) return false;
+  return true;
+};
+
 export const isAnonymousUser = (u) =>
   !!(u?.is_anonymous || u?.app_metadata?.provider === 'anonymous' || u?.app_metadata?.providers?.includes?.('anonymous'));
 
@@ -31,7 +49,11 @@ export async function ensureAuthUser() {
 }
 
 export async function signUp(email, password) {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const safeEmail = normalizeEmail(email);
+  if (!isLikelyValidEmail(safeEmail)) {
+    throw new Error('Please use a valid email address.');
+  }
+  const { data, error } = await supabase.auth.signUp({ email: safeEmail, password });
   if (error) throw error;
 
   try { await supabase.rpc('ensure_profile'); } catch {}
@@ -41,7 +63,8 @@ export async function signUp(email, password) {
 }
 
 export async function signIn(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const safeEmail = normalizeEmail(email);
+  const { data, error } = await supabase.auth.signInWithPassword({ email: safeEmail, password });
   if (error) throw error;
   try { await supabase.rpc('ensure_profile'); } catch {}
   await refreshUserStore();

@@ -2,6 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
   import { listPublicRooms, createRoom, subscribeRooms } from '../lib/api/rooms';
+  import { query } from '../lib/router';
+  import { multiplayerGames } from '../lib/gameData';
 
   let roomName = '';
   let rooms = [];
@@ -10,6 +12,10 @@
   let creating = false;
   let matching = false;
   let unsubscribe = null;
+  const gameOptions = multiplayerGames;
+  const validGame = (id) => gameOptions.some((g) => g.id === id);
+  let selectedGame = gameOptions[0]?.id || 'pong';
+  let lastSelectedGame = null;
 
   const safeCount = (room) =>
     room?.room_members?.[0]?.count ??
@@ -23,7 +29,7 @@
     loading = true;
     err = '';
     try {
-      rooms = await listPublicRooms('pong');
+      rooms = await listPublicRooms(selectedGame);
     } catch (e) {
       err = e?.message || 'Failed to load rooms.';
     } finally {
@@ -36,12 +42,12 @@
     creating = true;
     err = '';
     try {
-      const room = await createRoom({ game_id: 'pong', max_players: 2 });
+      const room = await createRoom({ game_id: selectedGame, max_players: 2 });
       roomName = '';
-      window.location.hash = `#/play/pong?room=${room.id}`;
+      window.location.hash = `#/play/${selectedGame}?room=${room.id}`;
     } catch (e) {
       if (e?.message?.includes('Not authenticated') && trimmed) {
-        window.location.hash = `#/play/pong?room=${encodeURIComponent(trimmed)}`;
+        window.location.hash = `#/play/${selectedGame}?room=${encodeURIComponent(trimmed)}`;
         roomName = '';
         err = '';
       } else {
@@ -58,75 +64,305 @@
     try {
       const openRoom = rooms.find((r) => safeCount(r) < roomCapacity(r));
       if (openRoom) {
-        window.location.hash = `#/play/pong?room=${openRoom.id}`;
+        window.location.hash = `#/play/${selectedGame}?room=${openRoom.id}`;
         return;
       }
-      const room = await createRoom({ game_id: 'pong', max_players: 2 });
-      window.location.hash = `#/play/pong?room=${room.id}`;
+      const room = await createRoom({ game_id: selectedGame, max_players: 2 });
+      window.location.hash = `#/play/${selectedGame}?room=${room.id}`;
     } catch (e) {
       const fallback = `guest-${Math.random().toString(16).slice(2, 8)}`;
-      window.location.hash = `#/play/pong?room=${fallback}`;
+      window.location.hash = `#/play/${selectedGame}?room=${fallback}`;
     } finally {
       matching = false;
     }
   }
 
   onMount(() => {
-    loadRooms();
     unsubscribe = subscribeRooms(() => loadRooms());
   });
 
   onDestroy(() => {
     unsubscribe?.();
   });
+
+  $: if ($query?.game && validGame($query.game) && $query.game !== selectedGame) {
+    selectedGame = $query.game;
+  }
+
+  $: if (selectedGame && selectedGame !== lastSelectedGame) {
+    lastSelectedGame = selectedGame;
+    loadRooms();
+  }
 </script>
 
-<Page title="Lobby" subtitle="Create a room or join an existing one.">
-  <div class="grid md:grid-cols-2 gap-6">
-    <div class="border border-slate-800 rounded-2xl p-4">
-      <h3 class="font-semibold mb-2">Create Room</h3>
-      <div class="flex flex-col gap-2">
-        <div class="flex gap-2">
-          <input bind:value={roomName} placeholder="Room code (optional)" class="px-3 py-2 rounded-lg bg-slate-800 w-full"/>
+<Page title="Lobby" subtitle="Start a new match or join an open room.">
+  <div class="content-shell">
+
+    <!-- Game selector -->
+    <div class="lobby-filter">
+      <label class="lb-label" for="lobby-game">Game</label>
+      <select id="lobby-game" bind:value={selectedGame}>
+        {#each gameOptions as g}
+          <option value={g.id}>{g.name}</option>
+        {/each}
+      </select>
+    </div>
+
+    {#if err}
+      <p class="lobby-error">{err}</p>
+    {/if}
+
+    <div class="grid md:grid-cols-2 gap-6">
+
+      <!-- Create room card -->
+      <div class="card">
+        <div class="lobby-card-header">
+          <h2 class="lobby-card-title">Create a room</h2>
+          <p class="lobby-card-desc">Start a new match and share the room code with a friend.</p>
+        </div>
+        <div class="lobby-create-form">
+          <div class="lobby-input-row">
+            <input
+              bind:value={roomName}
+              placeholder="Custom room code (optional)"
+              class="flex-1"
+            />
+            <button
+              class="btn btn-accent"
+              on:click={handleCreate}
+              disabled={creating || matching}
+            >
+              {creating ? 'Creating…' : 'Create'}
+            </button>
+          </div>
           <button
-            class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500"
-            on:click={handleCreate}
+            class="btn btn-ghost lobby-quickmatch"
+            on:click={handleQuickMatch}
             disabled={creating || matching}
           >
-            {creating ? 'Creating...' : 'Create'}
+            {matching ? 'Finding match…' : '⚡ Quick match'}
           </button>
+          <p class="lobby-hint">Quick match joins an open room automatically, or creates one if none are available.</p>
         </div>
-        <button
-          class="px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-500"
-          on:click={handleQuickMatch}
-          disabled={creating || matching}
-        >
-          {matching ? 'Finding match...' : 'Quick match'}
-        </button>
       </div>
-      {#if err}
-        <p class="text-rose-400 text-sm mt-3">{err}</p>
-      {/if}
-    </div>
-    <div class="border border-slate-800 rounded-2xl p-4">
-      <h3 class="font-semibold mb-2">Public Rooms</h3>
-      <ul class="space-y-2">
+
+      <!-- Public rooms card -->
+      <div class="card">
+        <div class="lobby-card-header">
+          <h2 class="lobby-card-title">Public rooms</h2>
+          <p class="lobby-card-desc">Open rooms waiting for a second player.</p>
+        </div>
         {#if loading}
-          <li class="text-white/60 text-sm">Loading rooms...</li>
+          <p class="lobby-loading">Loading rooms…</p>
         {:else if rooms.length === 0}
-          <li class="text-white/60 text-sm">No public rooms yet.</li>
+          <div class="lobby-empty">
+            <p class="lobby-empty__text">No open rooms right now.</p>
+            <p class="lobby-empty__hint">Create one above and share the code to invite a friend.</p>
+          </div>
         {:else}
-          {#each rooms as r}
-            <li class="flex items-center justify-between p-3 rounded-lg bg-slate-800">
-              <span class="font-mono">{r.id}</span>
-              <div class="flex items-center gap-3">
-                <span class="text-white/60">{safeCount(r)}/{roomCapacity(r)}</span>
-                <a class="px-3 py-1 rounded bg-sky-600 hover:bg-sky-500" href={`#/play/pong?room=${r.id}`}>Join</a>
-              </div>
-            </li>
-          {/each}
+          <ul class="lobby-rooms">
+            {#each rooms as r}
+              <li class="lobby-room">
+                <div class="lobby-room__info">
+                  <span class="lobby-room__code">{r.id}</span>
+                  <span class="lobby-room__slots">{safeCount(r)}/{roomCapacity(r)} players</span>
+                </div>
+                <a class="btn btn-accent" href={`#/play/${r.game_id || selectedGame}?room=${r.id}`}>
+                  Join
+                </a>
+              </li>
+            {/each}
+          </ul>
         {/if}
-      </ul>
+      </div>
+
     </div>
+
+    <!-- How to play note -->
+    <div class="lobby-howto">
+      <p class="section-eyebrow">How it works</p>
+      <div class="grid md:grid-cols-3 gap-4 mt-3">
+        <div class="lobby-step">
+          <span class="lobby-step__num">1</span>
+          <div>
+            <p class="lobby-step__title">Create a room</p>
+            <p class="lobby-step__body">Click Create to start a new match. A room code is generated automatically.</p>
+          </div>
+        </div>
+        <div class="lobby-step">
+          <span class="lobby-step__num">2</span>
+          <div>
+            <p class="lobby-step__title">Invite a friend</p>
+            <p class="lobby-step__body">Share the room code. Your friend enters it from the Lobby or Rooms page to join.</p>
+          </div>
+        </div>
+        <div class="lobby-step">
+          <span class="lobby-step__num">3</span>
+          <div>
+            <p class="lobby-step__title">Play</p>
+            <p class="lobby-step__body">Once both players are in, the host starts the match. Rematch is available after each round.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </Page>
+
+<style>
+  .lobby-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .lb-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--text-muted);
+  }
+
+  .lobby-error {
+    margin: 0 0 16px;
+    color: #ff8fa3;
+    font-size: 0.875rem;
+  }
+
+  .lobby-card-header {
+    margin-bottom: 16px;
+  }
+
+  .lobby-card-title {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .lobby-card-desc {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .lobby-create-form {
+    display: grid;
+    gap: 10px;
+  }
+
+  .lobby-input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .lobby-quickmatch {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .lobby-hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .lobby-loading {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .lobby-empty {
+    display: grid;
+    gap: 4px;
+    padding: 16px 0;
+  }
+
+  .lobby-empty__text {
+    margin: 0;
+    font-weight: 500;
+  }
+
+  .lobby-empty__hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  .lobby-rooms {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 8px;
+  }
+
+  .lobby-room {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(var(--text-primary-rgb), 0.04);
+  }
+
+  .lobby-room__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .lobby-room__code {
+    font-family: monospace;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .lobby-room__slots {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .lobby-howto {
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+  }
+
+  .lobby-step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .lobby-step__num {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #041020;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lobby-step__title {
+    margin: 0 0 4px;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .lobby-step__body {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+</style>

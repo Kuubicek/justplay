@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A1A0D"/>
+      <stop offset="100%" stop-color="#040C06"/>
+    </linearGradient>
+    <radialGradient id="centerglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#A3E635" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#A3E635" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="dot" cx="40%" cy="38%" r="60%">
+      <stop offset="0%" stop-color="#ECFCCB"/>
+      <stop offset="50%" stop-color="#A3E635"/>
+      <stop offset="100%" stop-color="#4D7C0F"/>
+    </radialGradient>
+    <filter id="blur-heavy">
+      <feGaussianBlur stdDeviation="25"/>
+    </filter>
+    <filter id="blur-mid">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <filter id="blur-xs">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+
+  <rect width="640" height="360" fill="url(#bg)"/>
+
+  <!-- Background ambient glow -->
+  <circle cx="320" cy="180" r="240" fill="url(#centerglow)" filter="url(#blur-heavy)"/>
+
+  <!-- Target rings - outermost to innermost -->
+  <circle cx="320" cy="180" r="155" stroke="#1A3A12" stroke-width="1.5" fill="none"/>
+  <circle cx="320" cy="180" r="130" stroke="#234D18" stroke-width="1.5" fill="none"/>
+  <circle cx="320" cy="180" r="105" stroke="#2E6420" stroke-width="2" fill="none"/>
+  <circle cx="320" cy="180" r="82" stroke="#3D7C2A" stroke-width="2" fill="none"/>
+  <circle cx="320" cy="180" r="60" stroke="#5A9E3A" stroke-width="2.5" fill="none"/>
+  <circle cx="320" cy="180" r="42" stroke="#7DC44A" stroke-width="3" fill="none"/>
+  <circle cx="320" cy="180" r="26" stroke="#A3E635" stroke-width="3.5" fill="none"/>
+
+  <!-- Crosshair lines (dashed) -->
+  <line x1="320" y1="18" x2="320" y2="148" stroke="#2E6420" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.8"/>
+  <line x1="320" y1="212" x2="320" y2="342" stroke="#2E6420" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.8"/>
+  <line x1="158" y1="180" x2="288" y2="180" stroke="#2E6420" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.8"/>
+  <line x1="352" y1="180" x2="482" y2="180" stroke="#2E6420" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.8"/>
+
+  <!-- Center glow -->
+  <circle cx="320" cy="180" r="30" fill="#A3E635" opacity="0.15" filter="url(#blur-mid)"/>
+
+  <!-- Center bullseye -->
+  <circle cx="320" cy="180" r="14" fill="url(#dot)"/>
+  <circle cx="320" cy="180" r="14" fill="#A3E635" opacity="0.2" filter="url(#blur-xs)"/>
+
+  <!-- Highlight on center -->
+  <ellipse cx="314" cy="173" rx="5" ry="4" fill="white" opacity="0.5"/>
+
+  <!-- Corner tick marks -->
+  <line x1="320" y1="24" x2="320" y2="36" stroke="#A3E635" stroke-width="2" opacity="0.8"/>
+  <line x1="320" y1="324" x2="320" y2="336" stroke="#A3E635" stroke-width="2" opacity="0.8"/>
+  <line x1="164" y1="180" x2="176" y2="180" stroke="#A3E635" stroke-width="2" opacity="0.8"/>
+  <line x1="464" y1="180" x2="476" y2="180" stroke="#A3E635" stroke-width="2" opacity="0.8"/>
+
+  <!-- Secondary hit indicators (score pops) -->
+  <circle cx="200" cy="110" r="8" fill="none" stroke="#84CC16" stroke-width="2" opacity="0.6"/>
+  <circle cx="200" cy="110" r="3" fill="#A3E635" opacity="0.7"/>
+
+  <circle cx="448" cy="95" r="6" fill="none" stroke="#84CC16" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="448" cy="95" r="2.5" fill="#A3E635" opacity="0.65"/>
+
+  <circle cx="475" cy="265" r="7" fill="none" stroke="#84CC16" stroke-width="2" opacity="0.55"/>
+  <circle cx="475" cy="265" r="2.5" fill="#A3E635" opacity="0.6"/>
+
+  <circle cx="165" cy="255" r="5" fill="none" stroke="#84CC16" stroke-width="1.5" opacity="0.45"/>
+  <circle cx="165" cy="255" r="2" fill="#A3E635" opacity="0.55"/>
+
+  <!-- "+1" style sparkle dots -->
+  <circle cx="260" cy="80" r="3" fill="#A3E635" opacity="0.75"/>
+  <circle cx="390" cy="68" r="2.5" fill="#84CC16" opacity="0.7"/>
+  <circle cx="120" cy="185" r="2" fill="#A3E635" opacity="0.65"/>
+  <circle cx="524" cy="200" r="2.5" fill="#84CC16" opacity="0.6"/>
+  <circle cx="355" cy="305" r="3" fill="#A3E635" opacity="0.7"/>
+  <circle cx="278" cy="318" r="2" fill="#84CC16" opacity="0.6"/>
+</svg>

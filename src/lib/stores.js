@@ -12,5 +12,8 @@ guest.subscribe((v) => {
   localStorage.setItem(guestKey, v ? '1' : '0');
 });
 
+// Used to trigger achievement UI refresh after a score is saved.
+export const achievementRefreshTick = writable(0);
+
 // Simple UI store
 export const ui = writable({ sidebarOpen: false });

@@ -6,7 +6,7 @@
   import { user, guest } from '../lib/stores';
   import { isAnonymousUser } from '../lib/api/auth';
   import { gameList } from '../lib/gameData';
-  import { getAchievementsForUser } from '../lib/api/achievements';
+  import { getAchievementsForUser, buildAchievementProgressByGame } from '../lib/api/achievements';
 
   let profileId = null;
   let profile = null;
@@ -22,6 +22,7 @@
   let achievementsLoading = false;
   let lastLoadedId = null;
   let isAnon = false;
+  const LEVEL_STEP = 120;
   const selectId = 'profile-game-filter';
   const rangeId = 'profile-range-filter';
   const localGames = gameList.map((g) => ({ id: g.id, name: g.name }));
@@ -146,10 +147,17 @@
     range;
     loadScores(profileId);
   }
-  $: totalAchievements = achievements.length;
-  $: unlockedAchievements = achievements.filter((achievement) => achievement.unlocked).length;
+  $: achievementProgress = buildAchievementProgressByGame(achievements);
+  $: totalAchievements = achievementProgress.totals.totalAchievements;
+  $: unlockedAchievements = achievementProgress.totals.unlockedAchievements;
+  $: unlockedAchievementPoints = achievementProgress.totals.unlockedPoints;
+  $: totalAchievementPoints = achievementProgress.totals.totalPoints;
   $: remainingAchievements = Math.max(0, totalAchievements - unlockedAchievements);
   $: overallCompletion = totalAchievements ? Math.round((unlockedAchievements / totalAchievements) * 100) : 0;
+  $: playerLevel = Math.max(1, Math.floor(unlockedAchievementPoints / LEVEL_STEP) + 1);
+  $: pointsIntoLevel = unlockedAchievementPoints % LEVEL_STEP;
+  $: pointsToNextLevel = LEVEL_STEP - pointsIntoLevel;
+  $: levelProgress = Math.max(0, Math.min(100, Math.round((pointsIntoLevel / LEVEL_STEP) * 100)));
   $: achievementGroups = (() => {
     const groups = new Map();
     for (const achievement of achievements) {
@@ -202,6 +210,26 @@
         <p class="text-lg font-semibold">{profile.username || 'Unnamed player'}</p>
         <p class="text-white/60 text-sm">{profile.id}</p>
       </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p class="text-white/60 text-xs uppercase tracking-[0.2em]">Player level</p>
+          <p class="text-2xl font-semibold">Level {playerLevel}</p>
+          <p class="text-white/60 text-sm">{pointsIntoLevel}/{LEVEL_STEP} pts in current level</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="pill">{unlockedAchievementPoints}/{totalAchievementPoints} achievement pts</span>
+          <span class="pill">{unlockedAchievements}/{totalAchievements} unlocked</span>
+        </div>
+      </div>
+      <div class="profile-achievement-group__progress mt-3" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={levelProgress}>
+        <span style={`width: ${levelProgress}%`}></span>
+      </div>
+      <p class="text-white/60 text-xs mt-2">
+        {pointsToNextLevel} pts to Level {playerLevel + 1}
+      </p>
     </div>
 
     <div class="card mb-4">
@@ -262,6 +290,7 @@
             <span class="pill">{unlockedAchievements}/{totalAchievements} unlocked</span>
             <span class="pill">{remainingAchievements} remaining</span>
             <span class="pill">{overallCompletion}% complete</span>
+            <span class="pill">{unlockedAchievementPoints}/{totalAchievementPoints} pts</span>
           </div>
         {/if}
       </div>
@@ -279,7 +308,7 @@
               <div class="profile-achievement-group__head">
                 <div>
                   <h4 class="profile-achievement-group__title">{group.title}</h4>
-                  <p class="text-white/60 text-sm">{group.unlocked}/{group.total} unlocked · {group.remaining} remaining</p>
+                  <p class="text-white/60 text-sm">{group.unlocked}/{group.total} unlocked - {group.remaining} remaining</p>
                 </div>
                 <div class="profile-achievement-group__meta">
                   <span class="text-white/70 text-xs uppercase tracking-[0.2em]">

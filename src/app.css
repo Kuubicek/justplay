@@ -154,46 +154,28 @@ main > * {
   z-index: 1;
 }
 
-/* Header with shadowed bottom edge */
+/* site-nav base — island styles live in Nav.svelte */
 .site-nav {
-  background: linear-gradient(
-    180deg,
-    rgba(var(--bg-body-rgb), 0.92) 0%,
-    rgba(var(--bg-body-rgb), 0.86) 100%
-  );
-  border-bottom: 1px solid var(--border);
-  box-shadow: var(--shadow-nav);
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  backdrop-filter: blur(16px);
-}
-
-.site-nav::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -18px;
-  height: 18px;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, transparent 100%);
-  pointer-events: none;
+  /* intentionally empty — all styles handled by island class in Nav.svelte */
 }
 
 /* Cards and panels */
 .card {
-  background: var(--bg-surface-strong);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 18px;
-  box-shadow: var(--shadow-strong);
+  background: rgba(var(--bg-surface-strong-rgb), 0.62);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  animation: fade-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .panel-soft {
   background: linear-gradient(135deg, rgba(77, 163, 255, 0.08), rgba(71, 230, 199, 0.06));
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  padding: 12px 14px;
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 14px 18px;
 }
 
 /* Buttons */
@@ -201,8 +183,8 @@ main > * {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  border-radius: 12px;
-  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
   border: 1px solid var(--border);
   background: var(--bg-surface-strong);
   color: var(--text-primary);
@@ -224,7 +206,7 @@ main > * {
 
 .btn-ghost {
   background: transparent;
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   color: var(--text-secondary);
 }
 
@@ -251,10 +233,12 @@ main > * {
 .stat-card {
   display: grid;
   gap: 6px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(var(--text-primary-rgb), 0.04);
+  padding: 12px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(var(--text-primary-rgb), 0.05);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .stat-card span {
@@ -309,31 +293,41 @@ thead th {
 }
 
 tbody tr {
-  background: var(--bg-surface-strong);
-  border: 1px solid var(--border);
+  background: rgba(var(--bg-surface-strong-rgb), 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 tbody td:first-child,
 thead th:first-child {
-  border-top-left-radius: 10px;
-  border-bottom-left-radius: 10px;
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
 }
 
 tbody td:last-child,
 thead th:last-child {
-  border-top-right-radius: 10px;
-  border-bottom-right-radius: 10px;
+  border-top-right-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 /* Forms */
 input,
-select,
-textarea {
-  background: var(--bg-surface-strong);
+select {
+  background: rgba(var(--bg-surface-strong-rgb), 0.7);
   color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  padding: 10px 18px;
+  backdrop-filter: blur(10px);
+}
+
+textarea {
+  background: rgba(var(--bg-surface-strong-rgb), 0.7);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  padding: 12px 16px;
+  backdrop-filter: blur(10px);
 }
 
 input:focus,
@@ -450,12 +444,15 @@ a {
   min-height: 280px;
   aspect-ratio: 4 / 3;
   padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: var(--bg-surface-strong);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(var(--bg-surface-strong-rgb), 0.6);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   text-decoration: none;
   color: inherit;
   transition: transform 140ms ease, box-shadow 160ms ease, border-color 140ms ease;
+  animation: fade-up 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .game-grid {
@@ -463,16 +460,16 @@ a {
 }
 
 .game-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-strong);
-  border-color: rgba(var(--text-primary-rgb), 0.18);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .game-card__media {
   position: relative;
   flex: 1 1 auto;
   min-height: 155px;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--border);
   background: linear-gradient(135deg, rgba(var(--text-primary-rgb), 0.08), transparent 70%),
@@ -864,7 +861,7 @@ a {
   position: relative;
   min-height: 240px;
   aspect-ratio: 21 / 9;
-  border-radius: 14px;
+  border-radius: 24px;
   overflow: hidden;
   border: 1px solid var(--border);
   background: linear-gradient(135deg, rgba(var(--text-primary-rgb), 0.08), transparent 70%),
@@ -976,9 +973,9 @@ a {
 
 .game-detail__play-button {
   align-self: flex-start;
-  padding: 0.85rem 1.6rem;
+  padding: 0.85rem 2rem;
   font-size: 1.05rem;
-  border-radius: 16px;
+  border-radius: 999px;
   background: linear-gradient(135deg, var(--accent), #1d6bff);
   border: 0;
   color: #041020;
@@ -998,10 +995,12 @@ a {
 }
 
 .game-detail__meta-card {
-  background: var(--bg-surface-strong);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px;
+  background: rgba(var(--bg-surface-strong-rgb), 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .game-detail__meta-label {
@@ -1034,13 +1033,15 @@ a {
 
 .auth-card {
   width: min(440px, 100%);
-  background: var(--bg-surface-strong);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 26px;
-  box-shadow: var(--shadow-strong);
+  background: rgba(var(--bg-surface-strong-rgb), 0.6);
+  backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 32px;
+  padding: 32px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   display: grid;
   gap: 16px;
+  animation: fade-up 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .auth-header h2 {
@@ -1081,8 +1082,8 @@ a {
 .auth-divider span {
   position: relative;
   z-index: 1;
-  padding: 0 10px;
-  background: var(--bg-surface-strong);
+  padding: 0 12px;
+  background: var(--bg-body);
 }
 
 .auth-form {
@@ -1131,12 +1132,14 @@ a {
 }
 
 .td-panel {
-  background: var(--bg-surface-strong);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
+  background: rgba(var(--bg-surface-strong-rgb), 0.6);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 18px;
   display: grid;
   gap: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .td-panel--info ul {
@@ -1160,10 +1163,11 @@ a {
 .td-stat {
   display: grid;
   gap: 6px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(var(--text-primary-rgb), 0.04);
+  padding: 12px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(var(--text-primary-rgb), 0.05);
+  backdrop-filter: blur(8px);
 }
 
 .td-stat span {
@@ -1285,10 +1289,12 @@ a {
 }
 
 .aow-overlay__card {
-  padding: 10px 16px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(5, 10, 18, 0.85);
+  padding: 12px 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(5, 10, 18, 0.8);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   color: var(--text-primary);
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -1302,9 +1308,10 @@ a {
 
 .aow-unit,
 .aow-upgrade {
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(var(--text-primary-rgb), 0.06);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(var(--bg-surface-strong-rgb), 0.55);
+  backdrop-filter: blur(10px);
   color: var(--text-primary);
   padding: 12px;
   text-align: left;
@@ -1342,12 +1349,14 @@ a {
 }
 
 .achievement-card {
-  background: rgba(var(--text-primary-rgb), 0.05);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px 14px;
+  background: rgba(var(--bg-surface-strong-rgb), 0.55);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 14px 16px;
   display: grid;
   gap: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .achievement-card.is-locked {
@@ -1480,10 +1489,12 @@ a {
 }
 
 .profile-achievement-group {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px;
-  background: rgba(var(--text-primary-rgb), 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 18px;
+  background: rgba(var(--bg-surface-strong-rgb), 0.45);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   display: grid;
   gap: 10px;
 }
@@ -1664,4 +1675,24 @@ a {
 
 .hover\:text-white\/90:hover {
   color: var(--text-primary);
+}
+
+/* Entrance animation — matches island header bounce-in feel */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .game-card,
+  .auth-card {
+    animation: none;
+  }
 }

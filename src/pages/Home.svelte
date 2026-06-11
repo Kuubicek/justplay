@@ -244,11 +244,12 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 5px 13px;
+    padding: 6px 16px;
     border-radius: 999px;
-    border: 1px solid var(--border);
-    background: rgba(var(--text-primary-rgb), 0.06);
-    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(var(--bg-surface-strong-rgb), 0.55);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     font-size: 0.74rem;
     font-weight: 500;
     color: var(--text-secondary);
@@ -315,9 +316,16 @@
 
   /* Stat row */
   .hero-stats {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 20px;
+    padding: 10px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(var(--bg-surface-strong-rgb), 0.45);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    margin-top: 4px;
   }
 
   .hero-stat {
@@ -358,10 +366,10 @@
   .hcard {
     position: absolute;
     width: 195px;
-    border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(var(--bg-surface-strong-rgb), 0.88);
-    backdrop-filter: blur(14px);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    background: rgba(var(--bg-surface-strong-rgb), 0.82);
+    backdrop-filter: blur(18px);
     overflow: hidden;
     box-shadow:
       0 20px 55px rgba(0, 0, 0, 0.5),

@@ -56,7 +56,7 @@
 
 <div class="min-h-dvh flex flex-col">
   <Nav />
-  <main class="flex-1 pb-8">
+  <main class="flex-1 pb-8" class:pt-24={currentPath !== '/'}>
     <svelte:component this={Current} />
   </main>
   <Footer />

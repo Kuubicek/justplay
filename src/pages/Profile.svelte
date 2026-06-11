@@ -17,8 +17,21 @@
   let loading = false;
   let err = '';
   let scoresErr = '';
+
+  // avatar modal
+  let showAvatarModal = false;
   let avatarUploading = false;
   let avatarErr = '';
+  let modalFile = null;
+  let modalUrl = '';
+  let modalPreviewUrl = '';
+  let modalObjectUrl = '';
+
+  // username edit
+  let editingUsername = false;
+  let newUsername = '';
+  let usernameErr = '';
+  let savingUsername = false;
   let achievements = [];
   let achievementsErr = '';
   let achievementsLoading = false;
@@ -194,26 +207,105 @@
   $: isAnon = isAnonymousUser($user);
   $: isOwnProfile = !$params.profileId || $params.profileId === $user?.id;
 
-  async function handleAvatarUpload(e) {
+  function openAvatarModal() {
+    modalFile = null;
+    modalUrl = profile?.avatar_url || '';
+    modalPreviewUrl = profile?.avatar_url || '';
+    avatarErr = '';
+    showAvatarModal = true;
+  }
+
+  function closeAvatarModal() {
+    showAvatarModal = false;
+    if (modalObjectUrl) { URL.revokeObjectURL(modalObjectUrl); modalObjectUrl = ''; }
+    modalFile = null;
+    modalUrl = '';
+    modalPreviewUrl = '';
+    avatarErr = '';
+  }
+
+  function handleFileSelect(e) {
     const file = e.target.files?.[0];
-    if (!file || !profileId) return;
-    if (file.size > 2 * 1024 * 1024) { avatarErr = 'Image must be under 2 MB.'; return; }
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { avatarErr = 'Image must be under 3 MB.'; return; }
+    avatarErr = '';
+    if (modalObjectUrl) URL.revokeObjectURL(modalObjectUrl);
+    modalObjectUrl = URL.createObjectURL(file);
+    modalFile = file;
+    modalPreviewUrl = modalObjectUrl;
+    modalUrl = '';
+  }
+
+  function handleUrlInput() {
+    modalFile = null;
+    if (modalObjectUrl) { URL.revokeObjectURL(modalObjectUrl); modalObjectUrl = ''; }
+    modalPreviewUrl = modalUrl.trim();
+  }
+
+  async function saveAvatar() {
+    if (!profileId) return;
     avatarUploading = true;
     avatarErr = '';
     try {
-      const ext = file.name.split('.').pop().toLowerCase() || 'jpg';
-      const path = `${profileId}/avatar.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from('avatars')
-        .upload(path, file, { upsert: true, contentType: file.type });
-      if (upErr) throw upErr;
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profileId);
-      profile = { ...profile, avatar_url: publicUrl };
+      let finalUrl = '';
+      if (modalFile) {
+        const ext = modalFile.name.split('.').pop().toLowerCase() || 'jpg';
+        const path = `${profileId}/avatar.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('avatars')
+          .upload(path, modalFile, { upsert: true, contentType: modalFile.type });
+        if (upErr) throw upErr;
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+        finalUrl = publicUrl;
+      } else if (modalUrl.trim()) {
+        finalUrl = modalUrl.trim();
+      }
+      await supabase.from('profiles').update({ avatar_url: finalUrl || null }).eq('id', profileId);
+      profile = { ...profile, avatar_url: finalUrl || null };
+      closeAvatarModal();
     } catch (ex) {
-      avatarErr = ex?.message || 'Upload failed.';
+      avatarErr = ex?.message || 'Upload failed. Make sure the "avatars" bucket exists in Supabase Storage.';
     } finally {
       avatarUploading = false;
+    }
+  }
+
+  async function removeAvatar() {
+    if (!profileId) return;
+    avatarUploading = true;
+    avatarErr = '';
+    try {
+      await supabase.from('profiles').update({ avatar_url: null }).eq('id', profileId);
+      profile = { ...profile, avatar_url: null };
+      closeAvatarModal();
+    } catch (ex) {
+      avatarErr = ex?.message || 'Failed to remove avatar.';
+    } finally {
+      avatarUploading = false;
+    }
+  }
+
+  function startEditUsername() {
+    newUsername = profile?.username || '';
+    usernameErr = '';
+    editingUsername = true;
+  }
+
+  async function saveUsername() {
+    const trimmed = newUsername.trim();
+    if (!trimmed || trimmed === profile?.username) { editingUsername = false; return; }
+    if (trimmed.length < 2) { usernameErr = 'At least 2 characters.'; return; }
+    if (trimmed.length > 24) { usernameErr = 'Max 24 characters.'; return; }
+    savingUsername = true;
+    usernameErr = '';
+    try {
+      await supabase.from('profiles').update({ username: trimmed }).eq('id', profileId);
+      profile = { ...profile, username: trimmed };
+      editingUsername = false;
+    } catch (ex) {
+      usernameErr = ex?.message || 'Failed to save.';
+    } finally {
+      savingUsername = false;
     }
   }
 </script>
@@ -228,6 +320,72 @@
   {:else if loading}
     <p class="text-white/70">Loading profile...</p>
   {:else if profile}
+
+    <!-- Avatar modal -->
+    {#if showAvatarModal}
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div class="avatar-modal-backdrop" on:click|self={closeAvatarModal}>
+        <div class="avatar-modal">
+          <div class="avatar-modal__header">
+            <h3 class="avatar-modal__title">Change profile photo</h3>
+            <button class="avatar-modal__close" type="button" on:click={closeAvatarModal} aria-label="Close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <!-- Preview -->
+          <div class="avatar-modal__preview-wrap">
+            {#if modalPreviewUrl}
+              <img src={modalPreviewUrl} alt="Preview" class="avatar-modal__preview-img" />
+            {:else}
+              <div class="avatar-modal__preview-placeholder">
+                {profile.username?.charAt(0)?.toUpperCase() || 'P'}
+              </div>
+            {/if}
+          </div>
+
+          <!-- Upload file -->
+          <label class="avatar-modal__upload-area">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Click to upload photo</span>
+            <small>PNG, JPG, WebP — max 3 MB</small>
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="sr-only" on:change={handleFileSelect} />
+          </label>
+
+          <!-- URL input -->
+          <div class="avatar-modal__url-row">
+            <span class="avatar-modal__or">or paste image URL</span>
+            <input
+              class="auth-input"
+              placeholder="https://example.com/photo.jpg"
+              bind:value={modalUrl}
+              on:input={handleUrlInput}
+              type="url"
+            />
+          </div>
+
+          {#if avatarErr}
+            <p class="avatar-modal__err">{avatarErr}</p>
+          {/if}
+
+          <!-- Actions -->
+          <div class="avatar-modal__actions">
+            {#if profile.avatar_url}
+              <button class="btn btn-ghost avatar-modal__remove" type="button" on:click={removeAvatar} disabled={avatarUploading}>
+                Remove photo
+              </button>
+            {/if}
+            <button class="btn btn-ghost" type="button" on:click={closeAvatarModal} disabled={avatarUploading}>Cancel</button>
+            <button class="btn btn-accent" type="button" on:click={saveAvatar} disabled={avatarUploading || (!modalFile && !modalUrl.trim())}>
+              {avatarUploading ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Profile header -->
     <div class="profile-header">
       <div class="profile-avatar-wrap">
         {#if profile.avatar_url}
@@ -238,31 +396,45 @@
           </div>
         {/if}
         {#if isOwnProfile}
-          <label class="profile-avatar-edit" title={avatarUploading ? 'Uploading…' : 'Change photo'}>
-            {#if avatarUploading}
-              <span class="profile-avatar-edit__spinner"></span>
-            {:else}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-            {/if}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              class="sr-only"
-              disabled={avatarUploading}
-              on:change={handleAvatarUpload}
-            />
-          </label>
+          <button class="profile-avatar-overlay" type="button" on:click={openAvatarModal} aria-label="Change photo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span>Change</span>
+          </button>
         {/if}
       </div>
-      <div>
-        <p class="text-lg font-semibold">{profile.username || 'Unnamed player'}</p>
-        <p class="text-white/60 text-sm">{profile.id}</p>
-        {#if avatarErr}
-          <p class="text-rose-400 text-xs mt-1">{avatarErr}</p>
+      <div class="profile-header__info">
+        {#if editingUsername}
+          <div class="profile-username-edit">
+            <input
+              class="auth-input profile-username-input"
+              bind:value={newUsername}
+              maxlength="24"
+              on:keydown={(e) => e.key === 'Enter' && saveUsername()}
+              on:keydown={(e) => e.key === 'Escape' && (editingUsername = false)}
+              autofocus
+            />
+            <button class="btn btn-accent btn-sm" type="button" on:click={saveUsername} disabled={savingUsername}>
+              {savingUsername ? '…' : 'Save'}
+            </button>
+            <button class="btn btn-ghost btn-sm" type="button" on:click={() => editingUsername = false}>Cancel</button>
+          </div>
+          {#if usernameErr}<p class="text-rose-400 text-xs mt-1">{usernameErr}</p>{/if}
+        {:else}
+          <div class="profile-username-row">
+            <p class="text-xl font-semibold">{profile.username || 'Unnamed player'}</p>
+            {#if isOwnProfile}
+              <button class="profile-edit-name-btn" type="button" on:click={startEditUsername} title="Edit name">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+            {/if}
+          </div>
+        {/if}
+        <p class="text-white/50 text-xs mt-1 font-mono">{profile.id}</p>
+        {#if isOwnProfile}
+          <button class="btn btn-ghost profile-change-photo-btn" type="button" on:click={openAvatarModal}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Change photo
+          </button>
         {/if}
       </div>
     </div>

@@ -238,7 +238,7 @@
   <div class="game-play-layout">
     <div class="game-play-stage">
       <div class="card relative overflow-hidden" bind:this={boardEl}>
-        <div class="w-full aspect-[16/18]" bind:this={container}>
+        <div class="w-full" style="height: min(calc(100vh - 200px), calc(100vw * 0.6)); min-height: 300px;" bind:this={container}>
           <canvas
             bind:this={canvas}
             class="w-full h-full block"

@@ -260,6 +260,14 @@ main > * {
 
 .game-play-stage {
   width: 100%;
+  overflow: hidden;
+}
+
+/* Pong board — 4:3 landscape, capped to viewport */
+.pong-board {
+  aspect-ratio: 4 / 3;
+  max-height: calc(100vh - 180px);
+  overflow: hidden;
 }
 
 .game-play-stage > .card {
@@ -279,6 +287,76 @@ main > * {
 
 .game-play-panels--wide {
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* Profile avatar */
+.profile-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.profile-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.profile-avatar-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.profile-avatar-placeholder {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--bg-surface-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.profile-avatar-edit {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--bg-surface-strong);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.profile-avatar-edit:hover {
+  background: rgba(var(--accent-rgb, 56,189,248), 0.22);
+  color: var(--accent);
+}
+
+.profile-avatar-edit__spinner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: var(--text-primary);
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Tables */

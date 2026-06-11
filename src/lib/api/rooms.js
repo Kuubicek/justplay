@@ -1,15 +1,13 @@
 import { supabase } from '../supabaseClient';
 
-export async function listPublicRooms(gameId = null) {
-  let query = supabase
+export async function listPublicRooms() {
+  const { data, error } = await supabase
     .from('rooms')
     .select('*, room_members(count)')
-    .eq('status', 'waiting')
-    .order('created_at', { ascending: false });
-  if (gameId) query = query.eq('game_id', gameId);
-  const { data, error } = await query;
+    .order('created_at', { ascending: false })
+    .limit(30);
   if (error) throw error;
-  return data;
+  return data ?? [];
 }
 
 export async function createRoom({ game_id = 'pong', max_players = 2 }) {
@@ -59,9 +57,8 @@ export async function myRooms() {
 export function subscribeRooms(callback) {
   const channel = supabase
     .channel('rooms_rt')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, payload => {
-      callback(payload);
-    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, callback)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'room_members' }, callback)
     .subscribe();
   return () => supabase.removeChannel(channel);
 }

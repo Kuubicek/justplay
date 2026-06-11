@@ -17,6 +17,9 @@
   let selectedGame = gameOptions[0]?.id || 'pong';
   let lastSelectedGame = null;
 
+  const GAME_NAMES = { 'pong': 'Pong Arena', 'pulse-rally': 'Pulse Rally' };
+  const gameName = (id) => GAME_NAMES[id] || id || 'Unknown';
+
   const safeCount = (room) =>
     room?.room_members?.[0]?.count ??
     room?.player_count ??
@@ -25,11 +28,30 @@
     0;
   const roomCapacity = (room) => room?.max_players ?? 2;
 
+  function roomStatus(room) {
+    const c = safeCount(room);
+    const cap = roomCapacity(room);
+    if (c === 0) return 'empty';
+    if (c >= cap) return 'full';
+    return 'open';
+  }
+
+  function timeAgo(dateStr) {
+    if (!dateStr) return '';
+    const secs = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+    if (secs < 60) return `${secs}s ago`;
+    const mins = Math.floor(secs / 60);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  }
+
   async function loadRooms() {
     loading = true;
     err = '';
     try {
-      rooms = await listPublicRooms(selectedGame);
+      rooms = await listPublicRooms();
     } catch (e) {
       err = e?.message || 'Failed to load rooms.';
     } finally {
@@ -62,7 +84,7 @@
     matching = true;
     err = '';
     try {
-      const openRoom = rooms.find((r) => safeCount(r) < roomCapacity(r));
+      const openRoom = rooms.find((r) => roomStatus(r) === 'open');
       if (openRoom) {
         window.location.hash = `#/play/${selectedGame}?room=${openRoom.id}`;
         return;
@@ -78,6 +100,7 @@
   }
 
   onMount(() => {
+    loadRooms();
     unsubscribe = subscribeRooms(() => loadRooms());
   });
 
@@ -91,7 +114,6 @@
 
   $: if (selectedGame && selectedGame !== lastSelectedGame) {
     lastSelectedGame = selectedGame;
-    loadRooms();
   }
 </script>
 
@@ -149,27 +171,56 @@
       <!-- Public rooms card -->
       <div class="card">
         <div class="lobby-card-header">
-          <h2 class="lobby-card-title">Public rooms</h2>
-          <p class="lobby-card-desc">Open rooms waiting for a second player.</p>
+          <div class="lobby-rooms-title-row">
+            <h2 class="lobby-card-title">Active rooms</h2>
+            {#if rooms.length > 0}
+              <span class="lobby-rooms-count">{rooms.length}</span>
+            {/if}
+          </div>
+          <p class="lobby-card-desc">All active multiplayer rooms across both games.</p>
         </div>
         {#if loading}
           <p class="lobby-loading">Loading rooms…</p>
         {:else if rooms.length === 0}
           <div class="lobby-empty">
-            <p class="lobby-empty__text">No open rooms right now.</p>
-            <p class="lobby-empty__hint">Create one above and share the code to invite a friend.</p>
+            <p class="lobby-empty__text">No active rooms right now.</p>
+            <p class="lobby-empty__hint">Create one and share the code to invite a friend.</p>
           </div>
         {:else}
           <ul class="lobby-rooms">
             {#each rooms as r}
+              {@const cnt = safeCount(r)}
+              {@const cap = roomCapacity(r)}
+              {@const status = roomStatus(r)}
+              {@const joinable = status === 'open' || status === 'empty'}
               <li class="lobby-room">
-                <div class="lobby-room__info">
-                  <span class="lobby-room__code">{r.id}</span>
-                  <span class="lobby-room__slots">{safeCount(r)}/{roomCapacity(r)} players</span>
+                <div class="lobby-room__top">
+                  <div class="lobby-room__tags">
+                    <span class="lobby-room__game-pill lobby-room__game-pill--{r.game_id || 'pong'}">
+                      {gameName(r.game_id)}
+                    </span>
+                    <span class="lobby-room__status lobby-room__status--{status}">
+                      <span class="lobby-room__dot"></span>
+                      {status === 'open' ? 'Open' : status === 'full' ? 'Full' : 'Empty'}
+                    </span>
+                  </div>
+                  <span class="lobby-room__count">{cnt}/{cap}</span>
                 </div>
-                <a class="btn btn-accent" href={`#/play/${r.game_id || selectedGame}?room=${r.id}`}>
-                  Join
-                </a>
+                <div class="lobby-room__bottom">
+                  <div class="lobby-room__meta">
+                    <span class="lobby-room__code">{r.id.slice(0, 8)}…</span>
+                    {#if r.created_at}
+                      <span class="lobby-room__time">{timeAgo(r.created_at)}</span>
+                    {/if}
+                  </div>
+                  {#if joinable}
+                    <a class="btn btn-accent lobby-room__btn" href={`#/play/${r.game_id || selectedGame}?room=${r.id}`}>
+                      Join
+                    </a>
+                  {:else}
+                    <span class="lobby-room__in-game">In game</span>
+                  {/if}
+                </div>
               </li>
             {/each}
           </ul>
@@ -291,40 +342,151 @@
     font-size: 0.85rem;
   }
 
+  .lobby-rooms-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .lobby-rooms-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb, 56,189,248), 0.18);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
   .lobby-rooms {
     list-style: none;
     padding: 0;
     margin: 0;
     display: grid;
     gap: 8px;
+    max-height: 360px;
+    overflow-y: auto;
   }
 
   .lobby-room {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 12px;
-    border-radius: 12px;
+    flex-direction: column;
+    gap: 7px;
+    padding: 11px 13px;
+    border-radius: 14px;
     border: 1px solid var(--border);
-    background: rgba(var(--text-primary-rgb), 0.04);
+    background: rgba(255, 255, 255, 0.03);
+    transition: border-color 0.15s;
   }
 
-  .lobby-room__info {
+  .lobby-room:hover {
+    border-color: rgba(var(--accent-rgb, 56,189,248), 0.28);
+  }
+
+  .lobby-room__top {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .lobby-room__tags {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .lobby-room__game-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.67rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: rgba(56, 189, 248, 0.14);
+    color: #38bdf8;
+  }
+
+  .lobby-room__game-pill--pulse-rally {
+    background: rgba(167, 139, 250, 0.14);
+    color: #a78bfa;
+  }
+
+  .lobby-room__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.74rem;
+    font-weight: 500;
+  }
+
+  .lobby-room__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .lobby-room__status--open { color: #4ade80; }
+  .lobby-room__status--open .lobby-room__dot { background: #4ade80; box-shadow: 0 0 6px #4ade8088; }
+  .lobby-room__status--full { color: #fb923c; }
+  .lobby-room__status--full .lobby-room__dot { background: #fb923c; }
+  .lobby-room__status--empty { color: var(--text-muted); }
+  .lobby-room__status--empty .lobby-room__dot { background: var(--text-muted); }
+
+  .lobby-room__count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .lobby-room__bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .lobby-room__meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
   }
 
   .lobby-room__code {
     font-family: monospace;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 500;
+    color: var(--text-primary);
   }
 
-  .lobby-room__slots {
-    font-size: 0.75rem;
+  .lobby-room__time {
+    font-size: 0.71rem;
     color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .lobby-room__btn {
+    padding: 0 14px;
+    height: 32px;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  .lobby-room__in-game {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-style: italic;
+    flex-shrink: 0;
   }
 
   .lobby-howto {

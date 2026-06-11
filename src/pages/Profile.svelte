@@ -17,6 +17,8 @@
   let loading = false;
   let err = '';
   let scoresErr = '';
+  let avatarUploading = false;
+  let avatarErr = '';
   let achievements = [];
   let achievementsErr = '';
   let achievementsLoading = false;
@@ -190,6 +192,30 @@
       });
   })();
   $: isAnon = isAnonymousUser($user);
+  $: isOwnProfile = !$params.profileId || $params.profileId === $user?.id;
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !profileId) return;
+    if (file.size > 2 * 1024 * 1024) { avatarErr = 'Image must be under 2 MB.'; return; }
+    avatarUploading = true;
+    avatarErr = '';
+    try {
+      const ext = file.name.split('.').pop().toLowerCase() || 'jpg';
+      const path = `${profileId}/avatar.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profileId);
+      profile = { ...profile, avatar_url: publicUrl };
+    } catch (ex) {
+      avatarErr = ex?.message || 'Upload failed.';
+    } finally {
+      avatarUploading = false;
+    }
+  }
 </script>
 
 <Page title="Profile" subtitle="Player stats & settings.">
@@ -202,13 +228,42 @@
   {:else if loading}
     <p class="text-white/70">Loading profile...</p>
   {:else if profile}
-    <div class="flex gap-4 items-center mb-6">
-      <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-xl font-semibold">
-        {profile.username?.charAt(0)?.toUpperCase() || 'P'}
+    <div class="profile-header">
+      <div class="profile-avatar-wrap">
+        {#if profile.avatar_url}
+          <img src={profile.avatar_url} alt={profile.username || 'Avatar'} class="profile-avatar-img" />
+        {:else}
+          <div class="profile-avatar-placeholder">
+            {profile.username?.charAt(0)?.toUpperCase() || 'P'}
+          </div>
+        {/if}
+        {#if isOwnProfile}
+          <label class="profile-avatar-edit" title={avatarUploading ? 'Uploading…' : 'Change photo'}>
+            {#if avatarUploading}
+              <span class="profile-avatar-edit__spinner"></span>
+            {:else}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            {/if}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              class="sr-only"
+              disabled={avatarUploading}
+              on:change={handleAvatarUpload}
+            />
+          </label>
+        {/if}
       </div>
       <div>
         <p class="text-lg font-semibold">{profile.username || 'Unnamed player'}</p>
         <p class="text-white/60 text-sm">{profile.id}</p>
+        {#if avatarErr}
+          <p class="text-rose-400 text-xs mt-1">{avatarErr}</p>
+        {/if}
       </div>
     </div>
 

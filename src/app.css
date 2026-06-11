@@ -1194,11 +1194,13 @@ a {
 }
 
 .td-board {
+  position: relative;
   border-radius: 18px;
   border: 1px solid var(--border);
   background: var(--bg-surface-strong);
   overflow: hidden;
   aspect-ratio: 3 / 2;
+  max-height: calc(100vh - 180px);
 }
 
 .td-canvas {
@@ -1210,7 +1212,8 @@ a {
 
 .taprush-board {
   position: relative;
-  min-height: clamp(640px, 84vw, 1000px);
+  min-height: min(clamp(440px, 55vw, 640px), calc(100vh - 180px));
+  max-height: calc(100vh - 180px);
   border-radius: 18px;
   border: 1px solid var(--border);
   background: linear-gradient(135deg, rgba(77, 163, 255, 0.12), rgba(15, 33, 56, 0.7));
@@ -1270,7 +1273,7 @@ a {
   border: 1px solid var(--border);
   background: var(--bg-surface-strong);
   overflow: hidden;
-  height: clamp(520px, 76vw, 880px);
+  height: min(clamp(460px, 55vw, 720px), calc(100vh - 180px));
 }
 
 .aow-canvas {
@@ -1584,11 +1587,12 @@ a {
   }
 
   .taprush-board {
-    min-height: 640px;
+    min-height: min(480px, calc(100vh - 180px));
+    max-height: calc(100vh - 180px);
   }
 
   .aow-board {
-    height: clamp(460px, 112vw, 640px);
+    height: min(clamp(380px, 88vw, 540px), calc(100vh - 180px));
   }
 
   .game-achievements__track,

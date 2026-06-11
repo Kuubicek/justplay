@@ -3,6 +3,7 @@
   import Page from '../components/Page.svelte';
   import { signUp, isLikelyValidEmail, normalizeEmail } from '../lib/api/auth';
 
+  let username = '';
   let email = '';
   let confirmEmail = '';
   let password = '';
@@ -23,6 +24,10 @@
     const safeEmail = normalizeEmail(email);
     const safeConfirm = normalizeEmail(confirmEmail);
     if (trapField.trim()) return 'Registration blocked. Please refresh and try again.';
+    if (!username.trim()) return 'Nickname is required.';
+    if (username.trim().length < 2) return 'Nickname must be at least 2 characters long.';
+    if (username.trim().length > 24) return 'Nickname must be at most 24 characters long.';
+    if (!/^[a-zA-Z0-9_\- ]+$/.test(username.trim())) return 'Nickname can only contain letters, numbers, spaces, hyphens, and underscores.';
     if (!isLikelyValidEmail(safeEmail)) return 'Enter a valid email address (example@domain.com).';
     if (safeEmail !== safeConfirm) return 'Email and confirmation email must match.';
     if (password.length < 8) return 'Password must be at least 8 characters long.';
@@ -41,7 +46,7 @@
     }
     try {
       const safeEmail = normalizeEmail(email);
-      await signUp(safeEmail, password);
+      await signUp(safeEmail, password, username.trim());
       verifyEmail = safeEmail;
       showVerify = true;
       password = '';
@@ -90,6 +95,17 @@
           bind:value={trapField}
           aria-hidden="true"
         />
+        <label class="auth-field">
+          <span>Nickname</span>
+          <input
+            class="auth-input"
+            placeholder="Your display name"
+            bind:value={username}
+            type="text"
+            maxlength="24"
+            required
+          />
+        </label>
         <label class="auth-field">
           <span>Email</span>
           <input

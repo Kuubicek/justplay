@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
+  import FullscreenBtn from '../components/FullscreenBtn.svelte';
   import GameAchievementsPanel from '../components/GameAchievementsPanel.svelte';
   import { addScore } from '../lib/api/scores';
   import { user, guest } from '../lib/stores';
@@ -336,7 +337,7 @@
 <Page title="Orb Collector" subtitle="Singleplayer grid chase with timed orb waves and speed-based time rewards.">
   <div class="game-play-layout">
     <div class="game-play-stage">
-      <div class="orb-field" bind:this={container}>
+      <div class="orb-field relative" bind:this={container}>
         <div class="w-full aspect-[3/2]">
           <canvas
             bind:this={canvas}
@@ -352,6 +353,7 @@
             </div>
           </div>
         {/if}
+        <FullscreenBtn target={container} />
       </div>
     </div>
 

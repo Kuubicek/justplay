@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
+  import FullscreenBtn from '../components/FullscreenBtn.svelte';
   import GameAchievementsPanel from '../components/GameAchievementsPanel.svelte';
   import { addScore } from '../lib/api/scores';
   import { user, guest } from '../lib/stores';
@@ -54,6 +55,7 @@
   });
 
   let canvas;
+  let boardEl;
   let ctx;
   let towers = [];
   let enemies = [];
@@ -382,7 +384,7 @@
 
 <Page title="Tower Defense Lite" subtitle="Place towers, stop waves, and keep the core safe.">
   <div class="td-wrap game-play-layout">
-    <div class="td-board">
+    <div class="td-board" bind:this={boardEl}>
       <canvas
         bind:this={canvas}
         width={canvasWidth}
@@ -391,6 +393,7 @@
         on:click={handleCanvasClick}
         aria-label="Tower defense board"
       ></canvas>
+      <FullscreenBtn target={boardEl} />
     </div>
 
     <div class="td-panel">

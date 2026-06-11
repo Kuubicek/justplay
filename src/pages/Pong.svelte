@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
+  import FullscreenBtn from '../components/FullscreenBtn.svelte';
   import GameAchievementsPanel from '../components/GameAchievementsPanel.svelte';
   import { supabase } from '../lib/supabaseClient';
   import { user, guest } from '../lib/stores';
@@ -34,6 +35,7 @@
   let err = '';
   let channel = null;
   let seat = 'spectator';
+  let boardEl;
   let authority = null;
   let isAuthority = false;
   let presence = [];
@@ -686,6 +688,7 @@
         role="application"
         aria-label="Pong field"
         tabindex="0"
+        bind:this={boardEl}
         on:mousemove={handlePointer}
         on:click={handlePointer}
         on:keydown={handleKeydown}
@@ -751,6 +754,7 @@
             </div>
           </div>
         {/if}
+        <FullscreenBtn target={boardEl} />
       </div>
     </div>
 

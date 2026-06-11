@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
+  import FullscreenBtn from '../components/FullscreenBtn.svelte';
   import GameAchievementsPanel from '../components/GameAchievementsPanel.svelte';
   import { addScore } from '../lib/api/scores';
   import { user, guest } from '../lib/stores';
@@ -252,6 +253,7 @@
             </div>
           </div>
         {/if}
+        <FullscreenBtn target={board} />
       </div>
     </div>
 

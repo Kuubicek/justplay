@@ -48,12 +48,16 @@ export async function ensureAuthUser() {
   return ensureGuestSession();
 }
 
-export async function signUp(email, password) {
+export async function signUp(email, password, username = '') {
   const safeEmail = normalizeEmail(email);
   if (!isLikelyValidEmail(safeEmail)) {
     throw new Error('Please use a valid email address.');
   }
-  const { data, error } = await supabase.auth.signUp({ email: safeEmail, password });
+  const signUpOptions = { email: safeEmail, password };
+  if (username.trim()) {
+    signUpOptions.options = { data: { display_name: username.trim() } };
+  }
+  const { data, error } = await supabase.auth.signUp(signUpOptions);
   if (error) throw error;
 
   try { await supabase.rpc('ensure_profile'); } catch {}

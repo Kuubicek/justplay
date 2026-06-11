@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
+  import FullscreenBtn from '../components/FullscreenBtn.svelte';
   import GameAchievementsPanel from '../components/GameAchievementsPanel.svelte';
   import { supabase } from '../lib/supabaseClient';
   import { user } from '../lib/stores';
@@ -34,6 +35,7 @@
   let err = '';
   let channel = null;
   let seat = 'spectator';
+  let boardEl;
   let authority = null;
   let isAuthority = false;
   let presence = [];
@@ -501,7 +503,7 @@
 <Page title="Pulse Rally" subtitle="Two-player tap race with randomized key prompts. First to 30 taps wins.">
   <div class="game-play-layout">
     <div class="game-play-stage">
-      <div class="border border-slate-800 rounded-2xl bg-slate-900/60 p-5 space-y-4 relative">
+      <div class="border border-slate-800 rounded-2xl bg-slate-900/60 p-5 space-y-4 relative" bind:this={boardEl}>
         <div class="flex items-center justify-between">
           <div>
             <p class="text-white/60 text-xs uppercase tracking-[0.2em]">Left</p>
@@ -543,6 +545,7 @@
             </div>
           </div>
         {/if}
+        <FullscreenBtn target={boardEl} />
       </div>
     </div>
 

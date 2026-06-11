@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import Page from '../components/Page.svelte';
+  import FullscreenBtn from '../components/FullscreenBtn.svelte';
   import GameAchievementsPanel from '../components/GameAchievementsPanel.svelte';
   import { addScore } from '../lib/api/scores';
   import { user, guest } from '../lib/stores';
@@ -13,6 +14,7 @@
   const PLAYER_Y = 0.84;
 
   let container;
+  let boardEl;
   let canvas;
   let ctx;
   let width = 0;
@@ -235,7 +237,7 @@
 <Page title="Astro Dodger" subtitle="Singleplayer survival: dodge the debris.">
   <div class="game-play-layout">
     <div class="game-play-stage">
-      <div class="card relative overflow-hidden">
+      <div class="card relative overflow-hidden" bind:this={boardEl}>
         <div class="w-full aspect-[16/18]" bind:this={container}>
           <canvas
             bind:this={canvas}
@@ -256,6 +258,7 @@
             </div>
           </div>
         {/if}
+        <FullscreenBtn target={boardEl} />
       </div>
     </div>
 
